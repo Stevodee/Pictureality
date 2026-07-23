@@ -7,7 +7,7 @@
 
 <!--
   ============================================================================
-  PANORAMA VIEWER — Three.js + Panolens.js, images hosted on GitHub Pages
+  PANORAMA VIEWER — Three.js + Panolens.js, images + data hosted on GitHub
   ============================================================================
 
   PINNED VERSIONS (important):
@@ -15,25 +15,25 @@
   three.js r105 + panolens 0.11.0 is a combo confirmed to still work together.
   Do not "upgrade" these independently or the viewer will silently fail.
 
-  HOW TO HOST YOUR PANORAMAS ON GITHUB:
-  1. Create a new repo (must be PUBLIC — private repo files aren't reachable
-     by a plain image URL without an auth token).
-  2. Add your equirectangular (2:1 aspect ratio) 360 photos to a folder in
-     it, e.g. /panos/location1.jpg
-  3. Push, then go to Settings -> Pages -> Build and deployment -> Deploy
-     from a branch -> pick "main" and "/ (root)" -> Save.
-  4. GitHub gives you a URL like:
-       https://YOUR_USERNAME.github.io/YOUR_REPO/panos/location1.jpg
-     Set BASE_URL below to https://YOUR_USERNAME.github.io/YOUR_REPO/
-     and just list each filename in the PANORAMAS array.
-  5. (Optional, no waiting for Pages to build) You can instead point
-     straight at raw.githubusercontent.com — it works immediately on push
-     and also sends proper CORS headers, it just isn't behind GitHub's CDN:
-       https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/panos/location1.jpg
+  HOW THIS WORKS NOW:
+  This page no longer has any panorama list hard-coded in it. Instead it
+  fetches a file called config.json (sitting next to this file, in the same
+  repo) which lists every panorama, its title, and any hotspot links to
+  other panoramas. That file is meant to be created and edited through
+  admin.html (the companion page) rather than by hand — that's what removes
+  the typo risk of hand-editing a JS array.
 
-  Both of the above send a real Access-Control-Allow-Origin header, so the
-  CORS/black-sphere problem that Google Drive had does not apply here —
-  no proxy, no workaround needed.
+  IMPORTANT: because this page fetches config.json, it must be viewed
+  through its real URL (GitHub Pages or raw.githubusercontent.com) — opening
+  it by double-clicking the file on your own computer will NOT work, browsers
+  block that kind of fetch for local files for security reasons.
+
+  SETUP, ONE TIME:
+  1. Make sure this repo is PUBLIC.
+  2. Enable GitHub Pages: Settings -> Pages -> Deploy from a branch -> main -> / (root).
+  3. Open admin.html (uploaded alongside this file) through its live URL,
+     paste in a GitHub token, and use it to upload images and build
+     config.json. See admin.html's own comments for details on the token.
 -->
 
 <style>
@@ -275,70 +275,6 @@
 (function () {
   "use strict";
 
-  // ==========================================================================
-  // CONFIG — edit this section
-  // ==========================================================================
-
-  // Where your repo is served from. Two common choices:
-  //   GitHub Pages (behind GitHub's CDN, takes a minute to go live after push):
-  //     "https://YOUR_USERNAME.github.io/YOUR_REPO/"
-  //   raw.githubusercontent.com (live instantly on push, no CDN):
-  //     "https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/"
-  // Include the trailing slash. Leave as-is and it'll just fall back to the
-  // sample panorama below until you fill this in.
-  var BASE_URL = "https://stevodee.github.io/Pictureality/";
-
-  // Your panoramas. "file" is the path to the image *inside your repo*,
-  // relative to BASE_URL — e.g. if BASE_URL points at the repo root and your
-  // image lives at /panos/location1.jpg, file is "panos/location1.jpg".
-  // Full resolution is used directly — GitHub doesn't need a resize
-  // parameter the way the Drive thumbnail endpoint did, so keep your source
-  // images at a sane size (a 6000x3000 equirectangular JPG is plenty; there's
-  // no benefit past that and it just slows down loading).
-  var PANORAMAS = [
-    { file: "panos/Bedroom2_Gibsonhouse.jpg", title: "Bedroom 2" },
-    { file: "panos/Bedroom3_Gibsonhouse.jpg", title: "Bedroom 3" },
-    { file: "panos/Bedroom4_Gibsonhouse.jpg", title: "Bedroom 4" },
-    { file: "panos/Bedroom5_Gibsonhouse.jpg", title: "Bedroom 5" },
-    { file: "panos/Dining_Gibsonhouse.jpg", title: "Dining" },
-    { file: "panos/Foyer_Gibsonhouse.jpg", title: "Foyer" },
-    { file: "panos/Hallway_Gibsonhouse.jpg", title: "Hallway" },
-    { file: "panos/kitchen_Gibsonhouse.jpg", title: "kitchen" },
-    { file: "panos/Landing_Gibsonhouse.jpg", title: "Landing" },
-    { file: "panos/Living1_Gibsonhouse.jpg", title: "Living Room 1" },
-    { file: "panos/Living2_Gibsonhouse.jpg", title: "Living Room 2" },
-    { file: "panos/Living3_Gibsonhouse.jpg", title: "Living Room 3" },
-    { file: "panos/Office_Gibsonhouse.jpg", title: "Surveyor's Office" },
-    { file: "panos/Servantlanding_Gibsonhouse.jpg", title: "Servant's landing" }
-
-
-    // Add as many as you like — the gallery rail scrolls horizontally.
-  ];
-
-  // A public, CORS-friendly placeholder so the page shows *something*
-  // working the moment you open it, before you've filled in BASE_URL and
-  // your own file paths above. Safe to ignore once real entries are set.
-  var PLACEHOLDER = {
-    title: "Sample panorama (set BASE_URL and PANORAMAS above with your own)",
-    directUrl: "https://i.imgur.com/wTCPouq.jpg"
-  };
-
-  // ==========================================================================
-  // URL building
-  // ==========================================================================
-
-  function panoUrl(entry) {
-    if (entry.directUrl) return entry.directUrl;
-    return BASE_URL + entry.file;
-  }
-
-  var scenes = (BASE_URL ? PANORAMAS : []).filter(function (p) { return p.file; });
-  if (scenes.length === 0) scenes = [PLACEHOLDER];
-
-  // ==========================================================================
-  // Viewer setup
-  // ==========================================================================
-
   var container = document.getElementById("viewer-container");
   var loadingEl = document.getElementById("loading");
   var loadingTextEl = document.getElementById("loading-text");
@@ -355,8 +291,9 @@
     output: "console"
   });
 
-  var currentPanorama = null;
-  var currentIndex = -1;
+  var panoObjects = {};   // id -> PANOLENS.ImagePanorama
+  var sceneList = [];     // ordered [{id, title, file}]
+  var currentId = null;
 
   function showLoading(msg) {
     loadingTextEl.textContent = msg || "LOADING PANORAMA…";
@@ -376,14 +313,18 @@
     errorEl.classList.remove("show");
   }
 
+  function resolveUrl(file) {
+    return new URL(file, window.location.href).toString();
+  }
+
   function buildGallery() {
     galleryEl.innerHTML = "";
-    scenes.forEach(function (entry, i) {
+    sceneList.forEach(function (entry) {
       var el = document.createElement("div");
-      el.className = "thumb" + (i === currentIndex ? " active" : "");
-      el.style.backgroundImage = "url('" + panoUrl(entry) + "')";
+      el.className = "thumb" + (entry.id === currentId ? " active" : "");
+      el.style.backgroundImage = "url('" + resolveUrl(entry.file) + "')";
       el.title = entry.title;
-      el.addEventListener("click", function () { loadScene(i); });
+      el.addEventListener("click", function () { switchTo(entry.id); });
 
       var label = document.createElement("div");
       label.className = "thumb-label";
@@ -394,61 +335,118 @@
     });
   }
 
-  function loadScene(index) {
-    if (index === currentIndex) return;
-    var entry = scenes[index];
-    currentIndex = index;
-
-    clearError();
-    showLoading("LOADING " + entry.title.toUpperCase());
+  function switchTo(id) {
+    if (id === currentId || !panoObjects[id]) return;
+    var entry = sceneList.filter(function (s) { return s.id === id; })[0];
+    if (!entry) return;
+    currentId = id;
     titleNameEl.textContent = entry.title;
-
-    var url = panoUrl(entry);
-    var next = new PANOLENS.ImagePanorama(url);
-
-    var failSafe = setTimeout(function () {
-      hideLoading();
-      showError(
-        "<strong>This panorama didn't load.</strong><br>" +
-        "Double-check BASE_URL and the file path are correct, that the repo " +
-        "is public, and — if using GitHub Pages — that the Pages build has " +
-        "finished (it can take a minute or two after your first push)."
-      );
-    }, 15000);
-
-    next.addEventListener("progress", function (evt) {
-      if (evt && evt.detail && evt.detail.lengthComputable) {
-        var pct = Math.round((evt.detail.loaded / evt.detail.total) * 100);
-        loadingTextEl.textContent = "LOADING " + entry.title.toUpperCase() + " — " + pct + "%";
-      }
-    });
-
-    next.addEventListener("load", function () {
-      clearTimeout(failSafe);
-      hideLoading();
-    });
-
-    next.addEventListener("error", function () {
-      clearTimeout(failSafe);
-      hideLoading();
-      showError(
-        "<strong>This panorama didn't load.</strong><br>" +
-        "Confirm BASE_URL and the file path are correct and that the repo " +
-        "is public — a private repo's files aren't reachable by a plain " +
-        "image URL."
-      );
-    });
-
-    viewer.add(next);
-    if (currentPanorama) {
-      viewer.setPanorama(next);
-      var old = currentPanorama;
-      setTimeout(function () { viewer.remove(old); }, 1000);
-    }
-    currentPanorama = next;
-
+    viewer.setPanorama(panoObjects[id]);
     buildGallery();
   }
+
+  // Panolens fires this on its own Infospot-link clicks (built-in hotspot
+  // navigation) — keep our title bar and gallery highlight in sync with it.
+  viewer.addEventListener("panolens-viewer-handler", function (evt) {
+    if (evt && evt.data && evt.data.method === "setPanorama") {
+      var target = evt.data.data;
+      var found = Object.keys(panoObjects).filter(function (id) {
+        return panoObjects[id] === target;
+      })[0];
+      if (found) {
+        currentId = found;
+        var entry = sceneList.filter(function (s) { return s.id === found; })[0];
+        if (entry) titleNameEl.textContent = entry.title;
+        buildGallery();
+      }
+    }
+  });
+
+  // ==========================================================================
+  // Boot — fetch config.json (built by admin.html), build all panoramas,
+  // wire up their links, then show the first one.
+  // ==========================================================================
+
+  showLoading("LOADING…");
+
+  fetch("config.json", { cache: "no-store" })
+    .then(function (res) {
+      if (!res.ok) throw new Error("config.json not found (HTTP " + res.status + ")");
+      return res.json();
+    })
+    .then(function (config) {
+      var panoramas = (config && config.panoramas) || [];
+      if (panoramas.length === 0) {
+        throw new Error("config.json exists but has no panoramas listed yet — add some via admin.html.");
+      }
+
+      sceneList = panoramas.map(function (p) {
+        return { id: p.id, title: p.title || p.id, file: p.file };
+      });
+
+      var firstId = sceneList[0].id;
+      showLoading("LOADING " + sceneList[0].title.toUpperCase());
+
+      var failSafe = setTimeout(function () {
+        hideLoading();
+        showError(
+          "<strong>Taking a while to load.</strong><br>" +
+          "Large panoramas can be slow the first time. If this never clears, " +
+          "open the browser console for the actual error."
+        );
+      }, 20000);
+
+      panoramas.forEach(function (p) {
+        var pano = new PANOLENS.ImagePanorama(resolveUrl(p.file));
+        panoObjects[p.id] = pano;
+        viewer.add(pano);
+
+        pano.addEventListener("load", function () {
+          if (p.id === firstId) {
+            clearTimeout(failSafe);
+            hideLoading();
+          }
+        });
+
+        pano.addEventListener("error", function () {
+          if (p.id === firstId) {
+            clearTimeout(failSafe);
+            hideLoading();
+          }
+          showError(
+            "<strong>\"" + (p.title || p.id) + "\" didn't load.</strong><br>" +
+            "Check that <code>" + p.file + "</code> exists in the repo with that " +
+            "exact filename and capitalization."
+          );
+        });
+      });
+
+      // Wire up hotspot links between panoramas (Panolens' built-in navigation)
+      panoramas.forEach(function (p) {
+        var source = panoObjects[p.id];
+        (p.links || []).forEach(function (link) {
+          var target = panoObjects[link.targetId];
+          if (source && target) {
+            source.link(target, new THREE.Vector3(link.x, link.y, link.z));
+          }
+        });
+      });
+
+      currentId = firstId;
+      titleNameEl.textContent = sceneList[0].title;
+      viewer.setPanorama(panoObjects[firstId]);
+      buildGallery();
+    })
+    .catch(function (err) {
+      hideLoading();
+      showError(
+        "<strong>Couldn't load config.json.</strong><br>" +
+        (err && err.message ? err.message : "") + "<br>" +
+        "Use admin.html to add panoramas, and make sure you're viewing this " +
+        "through its live GitHub Pages / raw.githubusercontent.com URL — " +
+        "opening the file locally won't work."
+      );
+    });
 
   // ==========================================================================
   // Heading / compass readout — driven by the actual camera, not decorative
@@ -465,11 +463,6 @@
     requestAnimationFrame(updateCompass);
   }
 
-  // ==========================================================================
-  // Boot
-  // ==========================================================================
-
-  loadScene(0);
   updateCompass();
 
 })();

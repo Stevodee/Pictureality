@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panorama Admin</title>
+
+<!--
+  ============================================================================
+  PANORAMA ADMIN — upload images, edit titles, place hotspot links
+  ============================================================================
+
+  This page talks directly to the GitHub API from your browser using a
+  Personal Access Token you paste in below. The token is held in a plain
+  JS variable for this page load only — it is never saved to a file, never
+  written into this site's code, and never stored in the browser (no
+  localStorage/cookies). Close or refresh the tab and it's gone; you'll
+  paste it in again next time you use this page.
+
+  The token needs "Contents: Read and write" permission on this one repo
+  (see the chat conversation this file came from for how to create one).
+
+  WHAT THIS PAGE DOES:
+  - Lists images already in your repo's /panos/ folder
+  - Lets you upload new images directly (skips GitHub's web upload UI —
+    and its 25MB limit doesn't apply here, though very large files can
+    still fail; see UPLOAD_SIZE_WARNING_MB below)
+  - Lets you edit each panorama's display title without touching code
+  - Lets you click directly on a panorama to place a hotspot marker
+    linking to another panorama (uses Panolens' built-in .link() feature)
+  - Saves everything to a single config.json file in your repo, which
+    index.html reads at load time
+
+  PINNED VERSIONS — same as index.html, don't change independently:
+  three.js r105 + panolens 0.11.0
+-->
+
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel2: #1a1e25;
+    --line: #262b33;
+    --text: #e8e6df;
+    --text-dim: #8b9099;
+    --accent: #d98a3d;
+    --danger: #c4553e;
+    --good: #5a9e6f;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { padding: 24px; max-width: 900px; margin: 0 auto 80px; }
+
+  h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0 0 4px;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin: 0 0 28px;
+  }
+
+  section {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+  }
+
+  section h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin: 0 0 14px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 8px 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+
+  button {
+    background: var(--accent);
+    color: #1a1206;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+
+  button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+
+  button.danger {
+    background: transparent;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+  }
+
+  button.small { padding: 4px 10px; font-size: 12px; }
+
+  #status-line {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+
+  #status-line.error { color: var(--danger); }
+  #status-line.ok { color: var(--good); }
+
+  .file-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .file-card {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--panel2);
+  }
+
+  .file-card img {
+    width: 100%; height: 70px;
+    object-fit: cover; display: block;
+  }
+
+  .file-card .fname {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    padding: 5px 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .file-card .fbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 6px 6px;
+  }
+
+  .file-card .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--good);
+  }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-family: var(--mono); font-size: 11px; color: var(--text-dim); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td img { width: 64px; height: 40px; object-fit: cover; border-radius: 3px; display: block; }
+  td input[type="text"] { margin: 0; }
+
+  .unsaved-dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); margin-right: 6px; vertical-align: middle;
+  }
+
+  #hotspot-panel { display: none; }
+  #hotspot-viewer {
+    width: 100%; height: 360px;
+    background: #000;
+    border-radius: 4px;
+    position: relative;
+    cursor: crosshair;
+  }
+
+  #link-picker {
+    display: none;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+
+  select {
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 6px 8px;
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+
+  .link-list-item {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    padding: 6px 0; border-bottom: 1px solid var(--line);
+  }
+
+  .hint { font-size: 12px; color: var(--text-dim); margin: 6px 0 0; }
+  .progress-item { font-family: var(--mono); font-size: 12px; color: var(--text-dim); padding: 2px 0; }
+</style>
+</head>
+<body>
+
+<h1>Panorama Admin</h1>
+<p class="subtitle">Upload panoramas, edit titles, and place navigation hotspots — no code editing needed.</p>
+
+<section id="connect-section">
+  <h2>1. Connect to your repo</h2>
+  <div class="row">
+    <div>
+      <label for="owner-input">GitHub username</label>
+      <input type="text" id="owner-input" value="stevodee">
+    </div>
+    <div>
+      <label for="repo-input">Repository name</label>
+      <input type="text" id="repo-input" value="Pictureality">
+    </div>
+  </div>
+  <label for="token-input">Personal Access Token (not saved anywhere — paste each session)</label>
+  <input type="password" id="token-input" placeholder="github_pat_...">
+  <button id="connect-btn">Connect</button>
+  <div id="status-line"></div>
+</section>
+
+<section id="files-section" style="display:none;">
+  <h2>2. Files already in /panos/</h2>
+  <div class="file-grid" id="file-grid"></div>
+  <p class="hint">Files already added to the site below are marked. Click "+ Add" on any that aren't.</p>
+</section>
+
+<section id="upload-section" style="display:none;">
+  <h2>3. Upload new panoramas</h2>
+  <input type="file" id="file-input" accept="image/*" multiple>
+  <br><br>
+  <button id="upload-btn">Upload Selected</button>
+  <div id="upload-progress"></div>
+  <p class="hint">Very large files (~20MB+) can fail to upload this way — compress with FFmpeg first if you hit that.</p>
+</section>
+
+<section id="table-section" style="display:none;">
+  <h2>4. Panoramas on the site</h2>
+  <table>
+    <thead>
+      <tr><th></th><th>Title</th><th>File</th><th>Hotspots</th><th></th></tr>
+    </thead>
+    <tbody id="pano-tbody"></tbody>
+  </table>
+</section>
+
+<section id="hotspot-panel">
+  <h2>Place hotspots for: <span id="hotspot-panel-title"></span></h2>
+  <div id="hotspot-viewer"></div>
+  <p class="hint">Click anywhere on the panorama to place a link to another location.</p>
+
+  <div id="link-picker">
+    <label for="link-target-select">Link this spot to:</label>
+    <select id="link-target-select"></select>
+    <button id="confirm-link-btn" class="small">Add Link</button>
+    <button id="cancel-link-btn" class="small secondary">Cancel</button>
+  </div>
+
+  <div id="link-list"></div>
+  <br>
+  <button id="close-hotspot-btn" class="secondary">Done</button>
+</section>
+
+<section id="save-section" style="display:none;">
+  <h2>5. Save</h2>
+  <button id="save-btn"><span id="unsaved-indicator" style="display:none;" class="unsaved-dot"></span>Save config.json to GitHub</button>
+  <div id="save-status"></div>
+</section>
+
+<!-- Pinned versions — must match index.html -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/105/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/panolens@0.11.0/build/panolens.min.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  // ==========================================================================
+  // State
+  // ==========================================================================
+
+  var TOKEN = "";
+  var OWNER = "";
+  var REPO = "";
+  var configSha = null;
+  var panosInRepo = [];              // [{name, path}]
+  var config = { panoramas: [] };    // working copy: [{id, title, file, links:[{targetId,x,y,z}]}]
+  var unsaved = false;
+
+  var editViewer = null;
+  var editPanoObj = null;
+  var editContainer = null;
+  var currentEditId = null;
+  var pendingPoint = null;
+  var markerObjects = []; // {targetId, obj}
+
+  // ==========================================================================
+  // Elements
+  // ==========================================================================
+
+  var el = function (id) { return document.getElementById(id); };
+
+  var statusLine = el("status-line");
+  var filesSection = el("files-section");
+  var fileGrid = el("file-grid");
+  var uploadSection = el("upload-section");
+  var fileInput = el("file-input");
+  var uploadProgress = el("upload-progress");
+  var tableSection = el("table-section");
+  var panoTbody = el("pano-tbody");
+  var saveSection = el("save-section");
+  var saveStatus = el("save-status");
+  var unsavedIndicator = el("unsaved-indicator");
+
+  var hotspotPanel = el("hotspot-panel");
+  var hotspotPanelTitle = el("hotspot-panel-title");
+  var hotspotViewerEl = el("hotspot-viewer");
+  var linkPicker = el("link-picker");
+  var linkTargetSelect = el("link-target-select");
+  var linkList = el("link-list");
+
+  // ==========================================================================
+  // Utilities
+  // ==========================================================================
+
+  function setStatus(msg, kind) {
+    statusLine.textContent = msg;
+    statusLine.className = kind || "";
+  }
+
+  function slugify(name) {
+    return name.toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  }
+
+  function titleFromFilename(name) {
+    return name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+  }
+
+  function b64EncodeUnicode(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function (m, p1) {
+      return String.fromCharCode("0x" + p1);
+    }));
+  }
+
+  function b64DecodeUnicode(str) {
+    return decodeURIComponent(Array.prototype.map.call(atob(str.replace(/\n/g, "")), function (c) {
+      return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(""));
+  }
+
+  function ghHeaders(extra) {
+    var h = { "Authorization": "token " + TOKEN, "Accept": "application/vnd.github+json" };
+    if (extra) for (var k in extra) h[k] = extra[k];
+    return h;
+  }
+
+  function apiBase() {
+    return "https://api.github.com/repos/" + OWNER + "/" + REPO;
+  }
+
+  function rawUrl(path) {
+    return "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/main/" + path;
+  }
+
+  function markUnsaved() {
+    unsaved = true;
+    unsavedIndicator.style.display = "inline-block";
+  }
+
+  function markSaved() {
+    unsaved = false;
+    unsavedIndicator.style.display = "none";
+  }
+
+  // ==========================================================================
+  // Step 1: Connect
+  // ==========================================================================
+
+  el("connect-btn").addEventListener("click", function () {
+    OWNER = el("owner-input").value.trim();
+    REPO = el("repo-input").value.trim();
+    TOKEN = el("token-input").value.trim();
+
+    if (!OWNER || !REPO || !TOKEN) {
+      setStatus("Fill in username, repo name, and token first.", "error");
+      return;
+    }
+
+    setStatus("Connecting…");
+
+    fetch(apiBase(), { headers: ghHeaders() })
+      .then(function (res) {
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) throw new Error("Token rejected — check it's valid and has Contents: Read and write on this repo.");
+          if (res.status === 404) throw new Error("Repo not found — check the username and repo name.");
+          throw new Error("GitHub returned HTTP " + res.status);
+        }
+        return res.json();
+      })
+      .then(function () {
+        setStatus("Connected.", "ok");
+        return Promise.all([loadPanosFolder(), loadConfig()]);
+      })
+      .then(function () {
+        filesSection.style.display = "block";
+        uploadSection.style.display = "block";
+        tableSection.style.display = "block";
+        saveSection.style.display = "block";
+      })
+      .catch(function (err) {
+        setStatus(err.message, "error");
+      });
+  });
+
+  function loadPanosFolder() {
+    return fetch(apiBase() + "/contents/panos", { headers: ghHeaders() })
+      .then(function (res) { return res.status === 404 ? [] : res.json(); })
+      .then(function (list) {
+        panosInRepo = (Array.isArray(list) ? list : []).filter(function (f) {
+          return /\.(jpe?g|png|webp)$/i.test(f.name);
+        });
+        renderFileGrid();
+      });
+  }
+
+  function loadConfig() {
+    return fetch(apiBase() + "/contents/config.json", { headers: ghHeaders() })
+      .then(function (res) {
+        if (res.status === 404) { configSha = null; config = { panoramas: [] }; return null; }
+        return res.json();
+      })
+      .then(function (data) {
+        if (data) {
+          configSha = data.sha;
+          try {
+            config = JSON.parse(b64DecodeUnicode(data.content));
+          } catch (e) {
+            config = { panoramas: [] };
+          }
+        }
+        if (!config.panoramas) config.panoramas = [];
+        renderPanoramaTable();
+      });
+  }
+
+  // ==========================================================================
+  // Step 2: Files already in repo
+  // ==========================================================================
+
+  function isFileInConfig(path) {
+    return config.panoramas.some(function (p) { return p.file === path; });
+  }
+
+  function renderFileGrid() {
+    fileGrid.innerHTML = "";
+    panosInRepo.forEach(function (f) {
+      var card = document.createElement("div");
+      card.className = "file-card";
+
+      var img = document.createElement("img");
+      img.src = rawUrl(f.path);
+      card.appendChild(img);
+
+      var fname = document.createElement("div");
+      fname.className = "fname";
+      fname.textContent = f.name;
+      card.appendChild(fname);
+
+      var bar = document.createElement("div");
+      bar.className = "fbar";
+
+      if (isFileInConfig(f.path)) {
+        var tag = document.createElement("span");
+        tag.className = "tag";
+        tag.textContent = "ON SITE";
+        bar.appendChild(tag);
+      } else {
+        var addBtn = document.createElement("button");
+        addBtn.className = "small";
+        addBtn.textContent = "+ Add";
+        addBtn.addEventListener("click", function () { addFileToConfig(f); });
+        bar.appendChild(addBtn);
+      }
+
+      card.appendChild(bar);
+      fileGrid.appendChild(card);
+    });
+  }
+
+  function addFileToConfig(f) {
+    var id = slugify(f.name);
+    var suffix = 1;
+    var baseId = id;
+    while (config.panoramas.some(function (p) { return p.id === id; })) {
+      id = baseId + "-" + (++suffix);
+    }
+    config.panoramas.push({ id: id, title: titleFromFilename(f.name), file: f.path, links: [] });
+    markUnsaved();
+    renderFileGrid();
+    renderPanoramaTable();
+  }
+
+  // ==========================================================================
+  // Step 3: Upload
+  // ==========================================================================
+
+  var UPLOAD_SIZE_WARNING_MB = 20;
+
+  el("upload-btn").addEventListener("click", function () {
+    var files = Array.prototype.slice.call(fileInput.files || []);
+    if (files.length === 0) {
+      setStatus("Choose one or more image files first.", "error");
+      return;
+    }
+    uploadProgress.innerHTML = "";
+    files.forEach(uploadOneFile);
+  });
+
+  function uploadOneFile(file) {
+    var line = document.createElement("div");
+    line.className = "progress-item";
+    line.textContent = file.name + " — reading…";
+    uploadProgress.appendChild(line);
+
+    if (file.size > UPLOAD_SIZE_WARNING_MB * 1024 * 1024) {
+      line.textContent = file.name + " — too large (" + Math.round(file.size / 1024 / 1024) + "MB). Compress it first (see FFmpeg note) and try again.";
+      return;
+    }
+
+    var sanitized = file.name.replace(/\s+/g, "_");
+    var reader = new FileReader();
+    reader.onload = function () {
+      var base64 = reader.result.split(",")[1];
+      line.textContent = file.name + " — uploading…";
+
+      fetch(apiBase() + "/contents/panos/" + encodeURIComponent(sanitized), {
+        method: "PUT",
+        headers: ghHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          message: "Add panorama " + sanitized,
+          content: base64,
+          branch: "main"
+        })
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ("HTTP " + res.status)); });
+          return res.json();
+        })
+        .then(function () {
+          line.textContent = file.name + " — done.";
+          var entry = { name: sanitized, path: "panos/" + sanitized };
+          panosInRepo.push(entry);
+          renderFileGrid();
+          addFileToConfig(entry);
+        })
+        .catch(function (err) {
+          line.textContent = file.name + " — FAILED: " + err.message;
+        });
+    };
+    reader.onerror = function () {
+      line.textContent = file.name + " — couldn't read file.";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ==========================================================================
+  // Step 4: Panorama table
+  // ==========================================================================
+
+  function renderPanoramaTable() {
+    panoTbody.innerHTML = "";
+    config.panoramas.forEach(function (p) {
+      var tr = document.createElement("tr");
+
+      var tdImg = document.createElement("td");
+      var img = document.createElement("img");
+      img.src = rawUrl(p.file);
+      tdImg.appendChild(img);
+      tr.appendChild(tdImg);
+
+      var tdTitle = document.createElement("td");
+      var titleInput = document.createElement("input");
+      titleInput.type = "text";
+      titleInput.value = p.title;
+      titleInput.addEventListener("input", function () {
+        p.title = titleInput.value;
+        markUnsaved();
+      });
+      tdTitle.appendChild(titleInput);
+      tr.appendChild(tdTitle);
+
+      var tdFile = document.createElement("td");
+      tdFile.textContent = p.file;
+      tdFile.style.fontFamily = "var(--mono)";
+      tdFile.style.fontSize = "11px";
+      tdFile.style.color = "var(--text-dim)";
+      tr.appendChild(tdFile);
+
+      var tdLinks = document.createElement("td");
+      var hotspotBtn = document.createElement("button");
+      hotspotBtn.className = "small secondary";
+      hotspotBtn.textContent = (p.links || []).length + " link" + ((p.links || []).length === 1 ? "" : "s") + " — edit";
+      hotspotBtn.addEventListener("click", function () { openHotspotEditor(p.id); });
+      tdLinks.appendChild(hotspotBtn);
+      tr.appendChild(tdLinks);
+
+      var tdRemove = document.createElement("td");
+      var removeBtn = document.createElement("button");
+      removeBtn.className = "small danger";
+      removeBtn.textContent = "Remove";
+      removeBtn.addEventListener("click", function () { removeFromConfig(p.id); });
+      tdRemove.appendChild(removeBtn);
+      tr.appendChild(tdRemove);
+
+      panoTbody.appendChild(tr);
+    });
+  }
+
+  function removeFromConfig(id) {
+    config.panoramas = config.panoramas.filter(function (p) { return p.id !== id; });
+    config.panoramas.forEach(function (p) {
+      p.links = (p.links || []).filter(function (l) { return l.targetId !== id; });
+    });
+    markUnsaved();
+    renderFileGrid();
+    renderPanoramaTable();
+  }
+
+  // ==========================================================================
+  // Step: Hotspot editor
+  // ==========================================================================
+
+  function openHotspotEditor(id) {
+    currentEditId = id;
+    var p = config.panoramas.filter(function (x) { return x.id === id; })[0];
+    if (!p) return;
+
+    hotspotPanelTitle.textContent = p.title;
+    hotspotPanel.style.display = "block";
+    hotspotPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    hotspotViewerEl.innerHTML = "";
+    markerObjects = [];
+
+    editViewer = new PANOLENS.Viewer({
+      container: hotspotViewerEl,
+      controlBar: false,
+      autoRotate: false,
+      output: "console"
+    });
+
+    editPanoObj = new PANOLENS.ImagePanorama(rawUrl(p.file));
+    editViewer.add(editPanoObj);
+    editViewer.setPanorama(editPanoObj);
+
+    editContainer = hotspotViewerEl;
+
+    (p.links || []).forEach(function (link) {
+      addVisualMarker(link);
+    });
+
+    renderLinkList();
+
+    var downPos = null;
+    editContainer.onpointerdown = function (e) { downPos = { x: e.clientX, y: e.clientY }; };
+    editContainer.onpointerup = function (e) {
+      if (!downPos) return;
+      var dx = e.clientX - downPos.x, dy = e.clientY - downPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) < 6) handleEditClick(e);
+      downPos = null;
+    };
+  }
+
+  function handleEditClick(e) {
+    if (!editViewer || !editPanoObj) return;
+    var rect = editContainer.getBoundingClientRect();
+    var mouse = new THREE.Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    var raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouse, editViewer.camera);
+    var hits = raycaster.intersectObject(editPanoObj, true);
+    if (hits.length > 0) {
+      pendingPoint = hits[0].point.clone();
+      showLinkPicker();
+    }
+  }
+
+  function showLinkPicker() {
+    var others = config.panoramas.filter(function (p) { return p.id !== currentEditId; });
+    if (others.length === 0) {
+      setStatus("Add at least one other panorama before placing links.", "error");
+      return;
+    }
+    linkTargetSelect.innerHTML = "";
+    others.forEach(function (p) {
+      var opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.title;
+      linkTargetSelect.appendChild(opt);
+    });
+    linkPicker.style.display = "block";
+  }
+
+  el("confirm-link-btn").addEventListener("click", function () {
+    if (!pendingPoint) return;
+    var targetId = linkTargetSelect.value;
+    var p = config.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
+    if (!p) return;
+    if (!p.links) p.links = [];
+    var link = { targetId: targetId, x: pendingPoint.x, y: pendingPoint.y, z: pendingPoint.z };
+    p.links.push(link);
+    addVisualMarker(link);
+    markUnsaved();
+    renderPanoramaTable();
+    renderLinkList();
+    linkPicker.style.display = "none";
+    pendingPoint = null;
+  });
+
+  el("cancel-link-btn").addEventListener("click", function () {
+    linkPicker.style.display = "none";
+    pendingPoint = null;
+  });
+
+  function addVisualMarker(link) {
+    var marker = new PANOLENS.Infospot(400);
+    marker.position.set(link.x, link.y, link.z);
+    var target = config.panoramas.filter(function (p) { return p.id === link.targetId; })[0];
+    marker.addHoverText(target ? target.title : link.targetId);
+    editPanoObj.add(marker);
+    markerObjects.push({ link: link, obj: marker });
+  }
+
+  function renderLinkList() {
+    var p = config.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
+    linkList.innerHTML = "";
+    if (!p) return;
+    (p.links || []).forEach(function (link, i) {
+      var target = config.panoramas.filter(function (x) { return x.id === link.targetId; })[0];
+      var row = document.createElement("div");
+      row.className = "link-list-item";
+
+      var label = document.createElement("span");
+      label.textContent = "→ " + (target ? target.title : link.targetId);
+      row.appendChild(label);
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "small danger";
+      delBtn.textContent = "Remove";
+      delBtn.addEventListener("click", function () {
+        var marker = markerObjects.filter(function (m) { return m.link === link; })[0];
+        if (marker) {
+          editPanoObj.remove(marker.obj);
+          markerObjects = markerObjects.filter(function (m) { return m !== marker; });
+        }
+        p.links.splice(i, 1);
+        markUnsaved();
+        renderPanoramaTable();
+        renderLinkList();
+      });
+      row.appendChild(delBtn);
+
+      linkList.appendChild(row);
+    });
+  }
+
+  el("close-hotspot-btn").addEventListener("click", function () {
+    hotspotPanel.style.display = "none";
+    linkPicker.style.display = "none";
+    currentEditId = null;
+    editViewer = null;
+    editPanoObj = null;
+  });
+
+  // ==========================================================================
+  // Step 5: Save
+  // ==========================================================================
+
+  el("save-btn").addEventListener("click", function () {
+    saveStatus.textContent = "Saving…";
+    saveStatus.className = "";
+
+    var content = JSON.stringify(config, null, 2);
+    var base64 = b64EncodeUnicode(content);
+    var body = { message: "Update config.json", content: base64, branch: "main" };
+    if (configSha) body.sha = configSha;
+
+    fetch(apiBase() + "/contents/config.json", {
+      method: "PUT",
+      headers: ghHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ("HTTP " + res.status)); });
+        return res.json();
+      })
+      .then(function (data) {
+        configSha = data.content.sha;
+        markSaved();
+        saveStatus.textContent = "Saved. Your live site will reflect this now.";
+        saveStatus.className = "ok";
+      })
+      .catch(function (err) {
+        saveStatus.textContent = "Save failed: " + err.message;
+        saveStatus.className = "error";
+      });
+  });
+
+})();
+</script>
+
+</body>
+</html>
