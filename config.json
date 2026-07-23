@@ -1,0 +1,94 @@
+{
+  "panoramas": [
+    {
+      "id": "kitchen-gibsonhouse",
+      "title": "kitchen Gibsonhouse",
+      "file": "panos/kitchen_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "dining-gibsonhouse",
+      "title": "Dining Gibsonhouse",
+      "file": "panos/Dining_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "living1-gibsonhouse",
+      "title": "Living1 Gibsonhouse",
+      "file": "panos/Living1_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "living2-gibsonhouse",
+      "title": "Living2 Gibsonhouse",
+      "file": "panos/Living2_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "living3-gibsonhouse",
+      "title": "Living3 Gibsonhouse",
+      "file": "panos/Living3_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "foyer-gibsonhouse",
+      "title": "Foyer Gibsonhouse",
+      "file": "panos/Foyer_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "landing-gibsonhouse",
+      "title": "Landing Gibsonhouse",
+      "file": "panos/Landing_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "hallway-gibsonhouse",
+      "title": "Hallway Gibsonhouse",
+      "file": "panos/Hallway_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "bedroom1-gibsonhouse",
+      "title": "Bedroom1 Gibsonhouse",
+      "file": "panos/Bedroom1_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "bedroom2-gibsonhouse",
+      "title": "Bedroom2 Gibsonhouse",
+      "file": "panos/Bedroom2_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "bedroom3-gibsonhouse",
+      "title": "Bedroom3 Gibsonhouse",
+      "file": "panos/Bedroom3_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "bedroom4-gibsonhouse",
+      "title": "Bedroom4 Gibsonhouse",
+      "file": "panos/Bedroom4_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "bedroom5-gibsonhouse",
+      "title": "Bedroom5 Gibsonhouse",
+      "file": "panos/Bedroom5_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "servantlanding-gibsonhouse",
+      "title": "Servantlanding Gibsonhouse",
+      "file": "panos/Servantlanding_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "office-gibsonhouse",
+      "title": "Office Gibsonhouse",
+      "file": "panos/Office_Gibsonhouse.jpg",
+      "links": []
+    }
+  ]
+}
