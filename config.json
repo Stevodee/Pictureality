@@ -1,25 +1,6 @@
 {
   "panoramas": [
     {
-      "id": "kitchen-gibsonhouse",
-      "title": "kitchen Gibsonhouse",
-      "file": "panos/kitchen_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "dining-gibsonhouse",
-          "x": 4568.618107595945,
-          "y": 358.58838464923656,
-          "z": 1992.102043333244
-        },
-        {
-          "targetId": "living1-gibsonhouse",
-          "x": 4279.3927062253015,
-          "y": 157.4418652767187,
-          "z": -2566.7816662238206
-        }
-      ]
-    },
-    {
       "id": "dining-gibsonhouse",
       "title": "Dining Gibsonhouse",
       "file": "panos/Dining_Gibsonhouse.jpg",
@@ -101,6 +82,12 @@
       "id": "office-gibsonhouse",
       "title": "Office Gibsonhouse",
       "file": "panos/Office_Gibsonhouse.jpg",
+      "links": []
+    },
+    {
+      "id": "kitchen-gibsonhouse",
+      "title": "kitchen Gibsonhouse",
+      "file": "panos/kitchen_Gibsonhouse.jpg",
       "links": []
     }
   ]
