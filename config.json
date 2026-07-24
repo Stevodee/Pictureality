@@ -4,7 +4,14 @@
       "id": "dining-gibsonhouse",
       "title": "Dining Gibsonhouse",
       "file": "panos/Dining_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "kitchen-gibsonhouse",
+          "x": -3562.7296562730917,
+          "y": -447.0813427420431,
+          "z": -3467.722012218181
+        }
+      ]
     },
     {
       "id": "living1-gibsonhouse",
