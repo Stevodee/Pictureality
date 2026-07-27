@@ -336,6 +336,7 @@
   var editContainer = null;
   var currentEditId = null;
   var pendingPoint = null;
+  var pendingMarker = null;
   var markerObjects = []; // {targetId, obj}
 
   // ==========================================================================
@@ -685,6 +686,8 @@
 
     hotspotViewerEl.innerHTML = "";
     markerObjects = [];
+    pendingMarker = null;
+    pendingPoint = null;
 
     editViewer = new PANOLENS.Viewer({
       container: hotspotViewerEl,
@@ -692,6 +695,20 @@
       autoRotate: false,
       output: "console"
     });
+
+    // The main site's viewer fills the whole browser window, so Panolens'
+    // default camera setup matches it fine. This panel is a small, wide,
+    // short box instead — without forcing the camera and renderer to match
+    // its actual shape, click-to-3D-point math comes out skewed (mostly
+    // horizontally, since width/height ratio is furthest from what a
+    // fullscreen viewer would have).
+    var panelW = hotspotViewerEl.clientWidth;
+    var panelH = hotspotViewerEl.clientHeight;
+    editViewer.camera.aspect = panelW / panelH;
+    editViewer.camera.updateProjectionMatrix();
+    if (editViewer.renderer) {
+      editViewer.renderer.setSize(panelW, panelH);
+    }
 
     editPanoObj = new PANOLENS.ImagePanorama(rawUrl(p.file));
     editViewer.add(editPanoObj);
@@ -727,6 +744,12 @@
     var hits = raycaster.intersectObject(editPanoObj, true);
     if (hits.length > 0) {
       pendingPoint = hits[0].point.clone();
+      // Show the marker immediately, before a target is even picked, so you
+      // can see exactly where it landed and cancel/retry if it's off.
+      pendingMarker = new PANOLENS.Infospot(400);
+      pendingMarker.position.copy(pendingPoint);
+      pendingMarker.addHoverText("New marker — pick a destination below");
+      editPanoObj.add(pendingMarker);
       showLinkPicker();
     }
   }
@@ -735,6 +758,8 @@
     var others = config.panoramas.filter(function (p) { return p.id !== currentEditId; });
     if (others.length === 0) {
       setStatus("Add at least one other panorama before placing links.", "error");
+      if (pendingMarker) { editPanoObj.remove(pendingMarker); pendingMarker = null; }
+      pendingPoint = null;
       return;
     }
     linkTargetSelect.innerHTML = "";
@@ -755,7 +780,18 @@
     if (!p.links) p.links = [];
     var link = { targetId: targetId, x: pendingPoint.x, y: pendingPoint.y, z: pendingPoint.z };
     p.links.push(link);
-    addVisualMarker(link);
+
+    // The pending marker becomes the real one — just update its label
+    // instead of creating a duplicate.
+    if (pendingMarker) {
+      var target = config.panoramas.filter(function (x) { return x.id === targetId; })[0];
+      pendingMarker.addHoverText(target ? target.title : targetId);
+      markerObjects.push({ link: link, obj: pendingMarker });
+      pendingMarker = null;
+    } else {
+      addVisualMarker(link);
+    }
+
     markUnsaved();
     renderPanoramaTable();
     renderLinkList();
@@ -766,6 +802,10 @@
   el("cancel-link-btn").addEventListener("click", function () {
     linkPicker.style.display = "none";
     pendingPoint = null;
+    if (pendingMarker) {
+      editPanoObj.remove(pendingMarker);
+      pendingMarker = null;
+    }
   });
 
   function addVisualMarker(link) {
@@ -816,6 +856,8 @@
     currentEditId = null;
     editViewer = null;
     editPanoObj = null;
+    pendingMarker = null;
+    pendingPoint = null;
   });
 
   // ==========================================================================
