@@ -7,7 +7,7 @@
 
 <!--
   ============================================================================
-  PANORAMA ADMIN — upload images, edit titles, place hotspot links
+  PANORAMA ADMIN — tour library, upload, titles, and hotspot links
   ============================================================================
 
   This page talks directly to the GitHub API from your browser using a
@@ -17,19 +17,20 @@
   localStorage/cookies). Close or refresh the tab and it's gone; you'll
   paste it in again next time you use this page.
 
-  The token needs "Contents: Read and write" permission on this one repo
-  (see the chat conversation this file came from for how to create one).
+  The token needs "Contents: Read and write" permission on this one repo.
 
-  WHAT THIS PAGE DOES:
-  - Lists images already in your repo's /panos/ folder
-  - Lets you upload new images directly (skips GitHub's web upload UI —
-    and its 25MB limit doesn't apply here, though very large files can
-    still fail; see UPLOAD_SIZE_WARNING_MB below)
-  - Lets you edit each panorama's display title without touching code
-  - Lets you click directly on a panorama to place a hotspot marker
-    linking to another panorama (uses Panolens' built-in .link() feature)
-  - Saves everything to a single config.json file in your repo, which
-    index.html reads at load time
+  WHAT'S NEW IN THIS VERSION:
+  Previously everything lived in one flat config.json. Now this page manages
+  a LIBRARY of tours (tours.json) — you can create, duplicate, copy/paste,
+  and delete whole tours, each with its own set of panoramas and hotspots.
+  Only one tour is "live" on the actual site at a time — use the Publish
+  button on whichever tour you want visitors to see; that writes it out to
+  config.json, which index.html still reads exactly as before.
+
+  If this is the first time you're opening this version and you already had
+  panoramas set up, they'll show up automatically as a tour called "My Tour"
+  (migrated in from your old config.json) — click Save Library, then
+  Publish, to make that official.
 
   PINNED VERSIONS — same as index.html, don't change independently:
   three.js r105 + panolens 0.11.0
@@ -38,8 +39,8 @@
 <style>
   :root {
     --bg: #0b0d10;
-    --panel: #14171c;
-    --panel2: #1a1e25;
+    --panel: rgba(20, 23, 28, 0.86);
+    --panel2: rgba(26, 30, 37, 0.9);
     --line: #262b33;
     --text: #e8e6df;
     --text-dim: #8b9099;
@@ -52,15 +53,32 @@
 
   * { box-sizing: border-box; }
 
-  html, body {
-    margin: 0; padding: 0;
+  html {
     background: var(--bg);
+  }
+
+  body {
+    margin: 0; padding: 24px 24px 80px;
+    max-width: 900px; margin-left: auto; margin-right: auto;
+    background: transparent;
     color: var(--text);
     font-family: var(--sans);
     -webkit-font-smoothing: antialiased;
+    position: relative;
   }
 
-  body { padding: 24px; max-width: 900px; margin: 0 auto 80px; }
+  /* A blurred, dimmed backdrop showing whichever panorama you last opened —
+     purely cosmetic, has no effect on any data. */
+  #bg-layer {
+    position: fixed;
+    top: -40px; left: -40px; right: -40px; bottom: -40px;
+    z-index: -1;
+    background-color: var(--bg);
+    background-size: cover;
+    background-position: center;
+    filter: blur(28px) brightness(0.35) saturate(0.9);
+    transition: background-image 0.6s ease;
+  }
 
   h1 {
     font-size: 18px;
@@ -76,6 +94,8 @@
 
   section {
     background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border: 1px solid var(--line);
     border-radius: 6px;
     padding: 18px 20px;
@@ -126,7 +146,7 @@
   }
 
   button:hover { opacity: 0.9; }
-  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
 
   button.secondary {
     background: transparent;
@@ -153,6 +173,55 @@
   #status-line.error { color: var(--danger); }
   #status-line.ok { color: var(--good); }
 
+  /* ---- Tour library toolbar + list ---- */
+  .toolbar-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  #tour-list { margin-bottom: 8px; }
+
+  .tour-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    background: var(--panel2);
+  }
+
+  .tour-row:hover { border-color: #3a4150; }
+  .tour-row.selected { border-color: var(--accent); }
+
+  .tour-row img {
+    width: 64px; height: 40px;
+    object-fit: cover; border-radius: 3px;
+    background: #000;
+    flex-shrink: 0;
+  }
+
+  .tour-row .tour-info { flex: 1; min-width: 0; }
+  .tour-row .tour-name { font-weight: 600; font-size: 13px; }
+  .tour-row .tour-meta {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 2px;
+  }
+
+  .tour-row .live-tag {
+    font-family: var(--mono); font-size: 9px; color: var(--good);
+    border: 1px solid var(--good); border-radius: 3px; padding: 2px 5px;
+    flex-shrink: 0;
+  }
+
+  .empty-hint {
+    font-size: 13px; color: var(--text-dim); padding: 10px 0;
+  }
+
+  /* ---- Files-in-repo grid ---- */
   .file-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -242,8 +311,10 @@
 </head>
 <body>
 
+<div id="bg-layer"></div>
+
 <h1>Panorama Admin</h1>
-<p class="subtitle">Upload panoramas, edit titles, and place navigation hotspots — no code editing needed.</p>
+<p class="subtitle">Manage tours, upload panoramas, edit titles, and place navigation hotspots — no code editing needed.</p>
 
 <section id="connect-section">
   <h2>1. Connect to your repo</h2>
@@ -263,14 +334,30 @@
   <div id="status-line"></div>
 </section>
 
+<section id="library-section" style="display:none;">
+  <h2>2. Tour Library</h2>
+  <div class="toolbar-row">
+    <button id="new-tour-btn">+ New Tour</button>
+    <button id="duplicate-tour-btn" class="secondary" disabled>Duplicate</button>
+    <button id="copy-tour-btn" class="secondary" disabled>Copy</button>
+    <button id="paste-tour-btn" class="secondary">Paste</button>
+    <button id="delete-tour-btn" class="danger" disabled>Delete</button>
+  </div>
+  <div id="tour-list"></div>
+  <p class="hint">Click a tour below to select and manage it. Copy/Paste move a tour's full data through your clipboard — handy for backups or duplicating into another project.</p>
+  <br>
+  <button id="save-library-btn"><span id="library-unsaved-indicator" style="display:none;" class="unsaved-dot"></span>Save Library to GitHub</button>
+  <div id="library-save-status"></div>
+</section>
+
 <section id="files-section" style="display:none;">
-  <h2>2. Files already in /panos/</h2>
+  <h2>3. Files already in /panos/</h2>
   <div class="file-grid" id="file-grid"></div>
-  <p class="hint">Files already added to the site below are marked. Click "+ Add" on any that aren't.</p>
+  <p class="hint">Files already added to the selected tour are marked. Click "+ Add" on any that aren't.</p>
 </section>
 
 <section id="upload-section" style="display:none;">
-  <h2>3. Upload new panoramas</h2>
+  <h2>4. Upload new panoramas</h2>
   <input type="file" id="file-input" accept="image/*" multiple>
   <br><br>
   <button id="upload-btn">Upload Selected</button>
@@ -279,7 +366,7 @@
 </section>
 
 <section id="table-section" style="display:none;">
-  <h2>4. Panoramas on the site</h2>
+  <h2>5. Panoramas in this tour</h2>
   <table>
     <thead>
       <tr><th></th><th>Title</th><th>File</th><th>Hotspots</th><th></th></tr>
@@ -305,10 +392,11 @@
   <button id="close-hotspot-btn" class="secondary">Done</button>
 </section>
 
-<section id="save-section" style="display:none;">
-  <h2>5. Save</h2>
-  <button id="save-btn"><span id="unsaved-indicator" style="display:none;" class="unsaved-dot"></span>Save config.json to GitHub</button>
-  <div id="save-status"></div>
+<section id="publish-section" style="display:none;">
+  <h2>6. Publish</h2>
+  <p class="hint">This is what actually goes live on your site. Publishing writes this tour's panoramas to config.json — the file index.html reads.</p>
+  <button id="publish-btn">Publish "<span id="publish-tour-name"></span>" as the live site</button>
+  <div id="publish-status"></div>
 </section>
 
 <!-- Pinned versions — must match index.html -->
@@ -326,10 +414,13 @@
   var TOKEN = "";
   var OWNER = "";
   var REPO = "";
-  var configSha = null;
-  var panosInRepo = [];              // [{name, path}]
-  var config = { panoramas: [] };    // working copy: [{id, title, file, links:[{targetId,x,y,z}]}]
+
+  var librarySha = null;
+  var libraryData = { tours: [] };   // { tours: [ {id, name, panoramas:[...]} ] }
+  var currentTour = null;            // reference into libraryData.tours
   var unsaved = false;
+
+  var panosInRepo = []; // [{name, path}]
 
   var editViewer = null;
   var editPanoObj = null;
@@ -337,7 +428,9 @@
   var currentEditId = null;
   var pendingPoint = null;
   var pendingMarker = null;
-  var markerObjects = []; // {targetId, obj}
+  var markerObjects = []; // {link, obj}
+  var editPointerDownHandler = null;
+  var editPointerUpHandler = null;
 
   // ==========================================================================
   // Elements
@@ -345,7 +438,20 @@
 
   var el = function (id) { return document.getElementById(id); };
 
+  var bgLayer = el("bg-layer");
   var statusLine = el("status-line");
+
+  var librarySection = el("library-section");
+  var tourListEl = el("tour-list");
+  var newTourBtn = el("new-tour-btn");
+  var duplicateTourBtn = el("duplicate-tour-btn");
+  var copyTourBtn = el("copy-tour-btn");
+  var pasteTourBtn = el("paste-tour-btn");
+  var deleteTourBtn = el("delete-tour-btn");
+  var saveLibraryBtn = el("save-library-btn");
+  var libraryUnsavedIndicator = el("library-unsaved-indicator");
+  var librarySaveStatus = el("library-save-status");
+
   var filesSection = el("files-section");
   var fileGrid = el("file-grid");
   var uploadSection = el("upload-section");
@@ -353,9 +459,6 @@
   var uploadProgress = el("upload-progress");
   var tableSection = el("table-section");
   var panoTbody = el("pano-tbody");
-  var saveSection = el("save-section");
-  var saveStatus = el("save-status");
-  var unsavedIndicator = el("unsaved-indicator");
 
   var hotspotPanel = el("hotspot-panel");
   var hotspotPanelTitle = el("hotspot-panel-title");
@@ -363,6 +466,11 @@
   var linkPicker = el("link-picker");
   var linkTargetSelect = el("link-target-select");
   var linkList = el("link-list");
+
+  var publishSection = el("publish-section");
+  var publishTourNameEl = el("publish-tour-name");
+  var publishBtn = el("publish-btn");
+  var publishStatus = el("publish-status");
 
   // ==========================================================================
   // Utilities
@@ -374,7 +482,7 @@
   }
 
   function slugify(name) {
-    return name.toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    return (name || "").toLowerCase().replace(/\.[^.]+$/, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
 
   function titleFromFilename(name) {
@@ -409,12 +517,24 @@
 
   function markUnsaved() {
     unsaved = true;
-    unsavedIndicator.style.display = "inline-block";
+    libraryUnsavedIndicator.style.display = "inline-block";
   }
 
   function markSaved() {
     unsaved = false;
-    unsavedIndicator.style.display = "none";
+    libraryUnsavedIndicator.style.display = "none";
+  }
+
+  function setBackgroundPano(url) {
+    if (url) bgLayer.style.backgroundImage = "url('" + url + "')";
+  }
+
+  function uniqueTourId(base) {
+    var id = base || "tour", n = 1;
+    while (libraryData.tours.some(function (t) { return t.id === id; })) {
+      id = base + "-" + (++n);
+    }
+    return id;
   }
 
   // ==========================================================================
@@ -444,13 +564,10 @@
       })
       .then(function () {
         setStatus("Connected.", "ok");
-        return Promise.all([loadPanosFolder(), loadConfig()]);
+        return Promise.all([loadPanosFolder(), loadLibrary()]);
       })
       .then(function () {
-        filesSection.style.display = "block";
-        uploadSection.style.display = "block";
-        tableSection.style.display = "block";
-        saveSection.style.display = "block";
+        librarySection.style.display = "block";
       })
       .catch(function (err) {
         setStatus(err.message, "error");
@@ -464,36 +581,225 @@
         panosInRepo = (Array.isArray(list) ? list : []).filter(function (f) {
           return /\.(jpe?g|png|webp)$/i.test(f.name);
         });
-        renderFileGrid();
       });
   }
 
-  function loadConfig() {
-    return fetch(apiBase() + "/contents/config.json", { headers: ghHeaders() })
+  function loadLibrary() {
+    return fetch(apiBase() + "/contents/tours.json", { headers: ghHeaders() })
+      .then(function (res) { return res.status === 404 ? null : res.json(); })
+      .then(function (data) {
+        if (data) {
+          librarySha = data.sha;
+          try {
+            libraryData = JSON.parse(b64DecodeUnicode(data.content));
+          } catch (e) {
+            libraryData = { tours: [] };
+          }
+          if (!libraryData.tours) libraryData.tours = [];
+          renderTourList();
+          return;
+        }
+        // No tours.json yet — check for a legacy flat config.json to migrate in.
+        return fetch(apiBase() + "/contents/config.json", { headers: ghHeaders() })
+          .then(function (res2) { return res2.status === 404 ? null : res2.json(); })
+          .then(function (data2) {
+            librarySha = null;
+            if (data2) {
+              try {
+                var legacy = JSON.parse(b64DecodeUnicode(data2.content));
+                libraryData = { tours: [{ id: "my-tour", name: "My Tour", panoramas: legacy.panoramas || [] }] };
+                setStatus("Found your existing config.json and migrated it into a tour called \"My Tour.\" Click Save Library to make this permanent.", "ok");
+              } catch (e) {
+                libraryData = { tours: [] };
+              }
+            } else {
+              libraryData = { tours: [] };
+            }
+            renderTourList();
+          });
+      });
+  }
+
+  // ==========================================================================
+  // Step 2: Tour library — list + toolbar actions
+  // ==========================================================================
+
+  function renderTourList() {
+    tourListEl.innerHTML = "";
+
+    if (libraryData.tours.length === 0) {
+      var empty = document.createElement("div");
+      empty.className = "empty-hint";
+      empty.textContent = "No tours yet — click \"+ New Tour\" to create one.";
+      tourListEl.appendChild(empty);
+    }
+
+    libraryData.tours.forEach(function (t) {
+      var row = document.createElement("div");
+      row.className = "tour-row" + (currentTour && currentTour.id === t.id ? " selected" : "");
+
+      var img = document.createElement("img");
+      if (t.panoramas && t.panoramas[0]) img.src = rawUrl(t.panoramas[0].file);
+      row.appendChild(img);
+
+      var info = document.createElement("div");
+      info.className = "tour-info";
+      var name = document.createElement("div");
+      name.className = "tour-name";
+      name.textContent = t.name;
+      var meta = document.createElement("div");
+      meta.className = "tour-meta";
+      var count = (t.panoramas || []).length;
+      meta.textContent = count + " panorama" + (count === 1 ? "" : "s");
+      info.appendChild(name);
+      info.appendChild(meta);
+      row.appendChild(info);
+
+      row.addEventListener("click", function () { selectTour(t.id); });
+      tourListEl.appendChild(row);
+    });
+
+    var hasSelection = !!currentTour;
+    duplicateTourBtn.disabled = !hasSelection;
+    copyTourBtn.disabled = !hasSelection;
+    deleteTourBtn.disabled = !hasSelection;
+  }
+
+  function selectTour(id) {
+    currentTour = libraryData.tours.filter(function (t) { return t.id === id; })[0] || null;
+    renderTourList();
+
+    if (!currentTour) {
+      filesSection.style.display = "none";
+      uploadSection.style.display = "none";
+      tableSection.style.display = "none";
+      publishSection.style.display = "none";
+      return;
+    }
+
+    filesSection.style.display = "block";
+    uploadSection.style.display = "block";
+    tableSection.style.display = "block";
+    publishSection.style.display = "block";
+    publishTourNameEl.textContent = currentTour.name;
+
+    renderFileGrid();
+    renderPanoramaTable();
+
+    if (currentTour.panoramas && currentTour.panoramas[0]) {
+      setBackgroundPano(rawUrl(currentTour.panoramas[0].file));
+    }
+  }
+
+  newTourBtn.addEventListener("click", function () {
+    var name = prompt("Name this tour:", "New Tour");
+    if (!name) return;
+    var id = uniqueTourId(slugify(name) || "tour");
+    var t = { id: id, name: name, panoramas: [] };
+    libraryData.tours.push(t);
+    markUnsaved();
+    selectTour(id);
+  });
+
+  duplicateTourBtn.addEventListener("click", function () {
+    if (!currentTour) return;
+    var clone = JSON.parse(JSON.stringify(currentTour));
+    clone.id = uniqueTourId(currentTour.id + "-copy");
+    clone.name = currentTour.name + " (Copy)";
+    libraryData.tours.push(clone);
+    markUnsaved();
+    selectTour(clone.id);
+  });
+
+  copyTourBtn.addEventListener("click", function () {
+    if (!currentTour) return;
+    var text = JSON.stringify(currentTour, null, 2);
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      setStatus("Clipboard access isn't available in this browser.", "error");
+      return;
+    }
+    navigator.clipboard.writeText(text)
+      .then(function () { setStatus("Copied \"" + currentTour.name + "\" to your clipboard.", "ok"); })
+      .catch(function () { setStatus("Couldn't access the clipboard on this page.", "error"); });
+  });
+
+  pasteTourBtn.addEventListener("click", function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      setStatus("Clipboard access isn't available in this browser.", "error");
+      return;
+    }
+    navigator.clipboard.readText()
+      .then(function (text) {
+        var parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (e) {
+          setStatus("Clipboard doesn't contain valid tour data.", "error");
+          return;
+        }
+        if (!parsed || !Array.isArray(parsed.panoramas)) {
+          setStatus("Clipboard JSON doesn't look like a tour (no panoramas list found).", "error");
+          return;
+        }
+        parsed.name = parsed.name || "Pasted Tour";
+        parsed.id = uniqueTourId(slugify(parsed.name) || "pasted-tour");
+        libraryData.tours.push(parsed);
+        markUnsaved();
+        selectTour(parsed.id);
+        setStatus("Pasted as a new tour.", "ok");
+      })
+      .catch(function () { setStatus("Couldn't read the clipboard on this page.", "error"); });
+  });
+
+  deleteTourBtn.addEventListener("click", function () {
+    if (!currentTour) return;
+    if (!confirm("Delete \"" + currentTour.name + "\"? This only removes it from the library — it does not delete any image files on GitHub.")) return;
+    libraryData.tours = libraryData.tours.filter(function (t) { return t !== currentTour; });
+    currentTour = null;
+    markUnsaved();
+    renderTourList();
+    filesSection.style.display = "none";
+    uploadSection.style.display = "none";
+    tableSection.style.display = "none";
+    publishSection.style.display = "none";
+  });
+
+  saveLibraryBtn.addEventListener("click", function () {
+    librarySaveStatus.textContent = "Saving…";
+    librarySaveStatus.className = "";
+
+    var content = JSON.stringify(libraryData, null, 2);
+    var base64 = b64EncodeUnicode(content);
+    var body = { message: "Update tours.json", content: base64, branch: "main" };
+    if (librarySha) body.sha = librarySha;
+
+    fetch(apiBase() + "/contents/tours.json", {
+      method: "PUT",
+      headers: ghHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify(body)
+    })
       .then(function (res) {
-        if (res.status === 404) { configSha = null; config = { panoramas: [] }; return null; }
+        if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ("HTTP " + res.status)); });
         return res.json();
       })
       .then(function (data) {
-        if (data) {
-          configSha = data.sha;
-          try {
-            config = JSON.parse(b64DecodeUnicode(data.content));
-          } catch (e) {
-            config = { panoramas: [] };
-          }
-        }
-        if (!config.panoramas) config.panoramas = [];
-        renderPanoramaTable();
+        librarySha = data.content.sha;
+        markSaved();
+        librarySaveStatus.textContent = "Library saved.";
+        librarySaveStatus.className = "ok";
+      })
+      .catch(function (err) {
+        librarySaveStatus.textContent = "Save failed: " + err.message;
+        librarySaveStatus.className = "error";
       });
-  }
+  });
 
   // ==========================================================================
-  // Step 2: Files already in repo
+  // Step 3: Files already in repo
   // ==========================================================================
 
-  function isFileInConfig(path) {
-    return config.panoramas.some(function (p) { return p.file === path; });
+  function isFileInTour(path) {
+    return currentTour && (currentTour.panoramas || []).some(function (p) { return p.file === path; });
   }
 
   function renderFileGrid() {
@@ -514,16 +820,16 @@
       var bar = document.createElement("div");
       bar.className = "fbar";
 
-      if (isFileInConfig(f.path)) {
+      if (isFileInTour(f.path)) {
         var tag = document.createElement("span");
         tag.className = "tag";
-        tag.textContent = "ON SITE";
+        tag.textContent = "IN TOUR";
         bar.appendChild(tag);
       } else {
         var addBtn = document.createElement("button");
         addBtn.className = "small";
         addBtn.textContent = "+ Add";
-        addBtn.addEventListener("click", function () { addFileToConfig(f); });
+        addBtn.addEventListener("click", function () { addFileToTour(f); });
         bar.appendChild(addBtn);
       }
 
@@ -532,21 +838,25 @@
     });
   }
 
-  function addFileToConfig(f) {
+  function addFileToTour(f) {
+    if (!currentTour) return;
+    if (!currentTour.panoramas) currentTour.panoramas = [];
     var id = slugify(f.name);
     var suffix = 1;
     var baseId = id;
-    while (config.panoramas.some(function (p) { return p.id === id; })) {
+    while (currentTour.panoramas.some(function (p) { return p.id === id; })) {
       id = baseId + "-" + (++suffix);
     }
-    config.panoramas.push({ id: id, title: titleFromFilename(f.name), file: f.path, links: [] });
+    currentTour.panoramas.push({ id: id, title: titleFromFilename(f.name), file: f.path, links: [] });
     markUnsaved();
     renderFileGrid();
     renderPanoramaTable();
+    renderTourList();
+    if (currentTour.panoramas.length === 1) setBackgroundPano(rawUrl(f.path));
   }
 
   // ==========================================================================
-  // Step 3: Upload
+  // Step 4: Upload
   // ==========================================================================
 
   var UPLOAD_SIZE_WARNING_MB = 20;
@@ -596,7 +906,7 @@
           var entry = { name: sanitized, path: "panos/" + sanitized };
           panosInRepo.push(entry);
           renderFileGrid();
-          addFileToConfig(entry);
+          addFileToTour(entry);
         })
         .catch(function (err) {
           line.textContent = file.name + " — FAILED: " + err.message;
@@ -609,12 +919,14 @@
   }
 
   // ==========================================================================
-  // Step 4: Panorama table
+  // Step 5: Panorama table (scoped to the selected tour)
   // ==========================================================================
 
   function renderPanoramaTable() {
     panoTbody.innerHTML = "";
-    config.panoramas.forEach(function (p) {
+    if (!currentTour) return;
+
+    (currentTour.panoramas || []).forEach(function (p) {
       var tr = document.createElement("tr");
 
       var tdImg = document.createElement("td");
@@ -644,7 +956,8 @@
       var tdLinks = document.createElement("td");
       var hotspotBtn = document.createElement("button");
       hotspotBtn.className = "small secondary";
-      hotspotBtn.textContent = (p.links || []).length + " link" + ((p.links || []).length === 1 ? "" : "s") + " — edit";
+      var linkCount = (p.links || []).length;
+      hotspotBtn.textContent = linkCount + " link" + (linkCount === 1 ? "" : "s") + " — edit";
       hotspotBtn.addEventListener("click", function () { openHotspotEditor(p.id); });
       tdLinks.appendChild(hotspotBtn);
       tr.appendChild(tdLinks);
@@ -653,7 +966,7 @@
       var removeBtn = document.createElement("button");
       removeBtn.className = "small danger";
       removeBtn.textContent = "Remove";
-      removeBtn.addEventListener("click", function () { removeFromConfig(p.id); });
+      removeBtn.addEventListener("click", function () { removeFromTour(p.id); });
       tdRemove.appendChild(removeBtn);
       tr.appendChild(tdRemove);
 
@@ -661,14 +974,16 @@
     });
   }
 
-  function removeFromConfig(id) {
-    config.panoramas = config.panoramas.filter(function (p) { return p.id !== id; });
-    config.panoramas.forEach(function (p) {
+  function removeFromTour(id) {
+    if (!currentTour) return;
+    currentTour.panoramas = currentTour.panoramas.filter(function (p) { return p.id !== id; });
+    currentTour.panoramas.forEach(function (p) {
       p.links = (p.links || []).filter(function (l) { return l.targetId !== id; });
     });
     markUnsaved();
     renderFileGrid();
     renderPanoramaTable();
+    renderTourList();
   }
 
   // ==========================================================================
@@ -676,9 +991,12 @@
   // ==========================================================================
 
   function openHotspotEditor(id) {
+    if (!currentTour) return;
     currentEditId = id;
-    var p = config.panoramas.filter(function (x) { return x.id === id; })[0];
+    var p = currentTour.panoramas.filter(function (x) { return x.id === id; })[0];
     if (!p) return;
+
+    setBackgroundPano(rawUrl(p.file));
 
     hotspotPanelTitle.textContent = p.title;
     hotspotPanel.style.display = "block";
@@ -699,9 +1017,7 @@
     // The main site's viewer fills the whole browser window, so Panolens'
     // default camera setup matches it fine. This panel is a small, wide,
     // short box instead — without forcing the camera and renderer to match
-    // its actual shape, click-to-3D-point math comes out skewed (mostly
-    // horizontally, since width/height ratio is furthest from what a
-    // fullscreen viewer would have).
+    // its actual shape, click-to-3D-point math comes out skewed.
     var panelW = hotspotViewerEl.clientWidth;
     var panelH = hotspotViewerEl.clientHeight;
     editViewer.camera.aspect = panelW / panelH;
@@ -722,14 +1038,23 @@
 
     renderLinkList();
 
+    // addEventListener (capture phase), not .onpointerdown = ..., so this
+    // can't get silently overwritten by Panolens' own handler on the same
+    // element. Also explicitly remove any leftover listener from a previous
+    // session, since this container element is reused each time.
+    if (editPointerDownHandler) editContainer.removeEventListener("pointerdown", editPointerDownHandler, true);
+    if (editPointerUpHandler) editContainer.removeEventListener("pointerup", editPointerUpHandler, true);
+
     var downPos = null;
-    editContainer.onpointerdown = function (e) { downPos = { x: e.clientX, y: e.clientY }; };
-    editContainer.onpointerup = function (e) {
+    editPointerDownHandler = function (e) { downPos = { x: e.clientX, y: e.clientY }; };
+    editPointerUpHandler = function (e) {
       if (!downPos) return;
       var dx = e.clientX - downPos.x, dy = e.clientY - downPos.y;
       if (Math.sqrt(dx * dx + dy * dy) < 6) handleEditClick(e);
       downPos = null;
     };
+    editContainer.addEventListener("pointerdown", editPointerDownHandler, true);
+    editContainer.addEventListener("pointerup", editPointerUpHandler, true);
   }
 
   function handleEditClick(e) {
@@ -744,8 +1069,6 @@
     var hits = raycaster.intersectObject(editPanoObj, true);
     if (hits.length > 0) {
       pendingPoint = hits[0].point.clone();
-      // Show the marker immediately, before a target is even picked, so you
-      // can see exactly where it landed and cancel/retry if it's off.
       pendingMarker = new PANOLENS.Infospot(400);
       pendingMarker.position.copy(pendingPoint);
       pendingMarker.addHoverText("New marker — pick a destination below");
@@ -755,9 +1078,9 @@
   }
 
   function showLinkPicker() {
-    var others = config.panoramas.filter(function (p) { return p.id !== currentEditId; });
+    var others = currentTour.panoramas.filter(function (p) { return p.id !== currentEditId; });
     if (others.length === 0) {
-      setStatus("Add at least one other panorama before placing links.", "error");
+      setStatus("Add at least one other panorama to this tour before placing links.", "error");
       if (pendingMarker) { editPanoObj.remove(pendingMarker); pendingMarker = null; }
       pendingPoint = null;
       return;
@@ -773,18 +1096,16 @@
   }
 
   el("confirm-link-btn").addEventListener("click", function () {
-    if (!pendingPoint) return;
+    if (!pendingPoint || !currentTour) return;
     var targetId = linkTargetSelect.value;
-    var p = config.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
+    var p = currentTour.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
     if (!p) return;
     if (!p.links) p.links = [];
     var link = { targetId: targetId, x: pendingPoint.x, y: pendingPoint.y, z: pendingPoint.z };
     p.links.push(link);
 
-    // The pending marker becomes the real one — just update its label
-    // instead of creating a duplicate.
     if (pendingMarker) {
-      var target = config.panoramas.filter(function (x) { return x.id === targetId; })[0];
+      var target = currentTour.panoramas.filter(function (x) { return x.id === targetId; })[0];
       pendingMarker.addHoverText(target ? target.title : targetId);
       markerObjects.push({ link: link, obj: pendingMarker });
       pendingMarker = null;
@@ -811,18 +1132,19 @@
   function addVisualMarker(link) {
     var marker = new PANOLENS.Infospot(400);
     marker.position.set(link.x, link.y, link.z);
-    var target = config.panoramas.filter(function (p) { return p.id === link.targetId; })[0];
+    var target = currentTour.panoramas.filter(function (p) { return p.id === link.targetId; })[0];
     marker.addHoverText(target ? target.title : link.targetId);
     editPanoObj.add(marker);
     markerObjects.push({ link: link, obj: marker });
   }
 
   function renderLinkList() {
-    var p = config.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
+    if (!currentTour) return;
+    var p = currentTour.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
     linkList.innerHTML = "";
     if (!p) return;
     (p.links || []).forEach(function (link, i) {
-      var target = config.panoramas.filter(function (x) { return x.id === link.targetId; })[0];
+      var target = currentTour.panoramas.filter(function (x) { return x.id === link.targetId; })[0];
       var row = document.createElement("div");
       row.className = "link-list-item";
 
@@ -861,36 +1183,40 @@
   });
 
   // ==========================================================================
-  // Step 5: Save
+  // Step 6: Publish (writes the selected tour to config.json for the live site)
   // ==========================================================================
 
-  el("save-btn").addEventListener("click", function () {
-    saveStatus.textContent = "Saving…";
-    saveStatus.className = "";
+  publishBtn.addEventListener("click", function () {
+    if (!currentTour) return;
+    publishStatus.textContent = "Publishing…";
+    publishStatus.className = "";
 
-    var content = JSON.stringify(config, null, 2);
-    var base64 = b64EncodeUnicode(content);
-    var body = { message: "Update config.json", content: base64, branch: "main" };
-    if (configSha) body.sha = configSha;
-
-    fetch(apiBase() + "/contents/config.json", {
-      method: "PUT",
-      headers: ghHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(body)
-    })
+    fetch(apiBase() + "/contents/config.json", { headers: ghHeaders() })
+      .then(function (res) { return res.status === 404 ? null : res.json(); })
+      .then(function (data) {
+        var sha = data ? data.sha : null;
+        var payload = { panoramas: currentTour.panoramas };
+        var content = JSON.stringify(payload, null, 2);
+        var base64 = b64EncodeUnicode(content);
+        var body = { message: "Publish tour: " + currentTour.name, content: base64, branch: "main" };
+        if (sha) body.sha = sha;
+        return fetch(apiBase() + "/contents/config.json", {
+          method: "PUT",
+          headers: ghHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(body)
+        });
+      })
       .then(function (res) {
         if (!res.ok) return res.json().then(function (j) { throw new Error(j.message || ("HTTP " + res.status)); });
         return res.json();
       })
-      .then(function (data) {
-        configSha = data.content.sha;
-        markSaved();
-        saveStatus.textContent = "Saved. Your live site will reflect this now.";
-        saveStatus.className = "ok";
+      .then(function () {
+        publishStatus.textContent = "Published. Your live site now shows \"" + currentTour.name + ".\"";
+        publishStatus.className = "ok";
       })
       .catch(function (err) {
-        saveStatus.textContent = "Save failed: " + err.message;
-        saveStatus.className = "error";
+        publishStatus.textContent = "Publish failed: " + err.message;
+        publishStatus.className = "error";
       });
   });
 
