@@ -1,58 +1,27 @@
 {
   "panoramas": [
     {
-      "id": "dining-gibsonhouse",
-      "title": "Dining Gibsonhouse",
-      "file": "panos/Dining_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "foyer-gibsonhouse",
-          "x": 4183.155941554361,
-          "y": 278.4799358357195,
-          "z": -2706.2535620242706
-        },
-        {
-          "targetId": "kitchen-gibsonhouse",
-          "x": -3731.2662816774873,
-          "y": 19.14466466887449,
-          "z": -3325.2664820995233
-        }
-      ]
-    },
-    {
       "id": "living1-gibsonhouse",
       "title": "Living1 Gibsonhouse",
       "file": "panos/Living1_Gibsonhouse.jpg",
       "links": [
         {
-          "targetId": "foyer-gibsonhouse",
-          "x": 2517.5973439168897,
-          "y": 453.76530945027594,
-          "z": -4291.683022477365
-        },
-        {
-          "targetId": "living3-gibsonhouse",
-          "x": 392.5115530068498,
-          "y": 275.2562449511617,
-          "z": -4968.614485403809
-        },
-        {
           "targetId": "living2-gibsonhouse",
-          "x": 435.0180251585034,
-          "y": -2424.90881794192,
-          "z": -4345.454610694863
+          "x": 399.326444514282,
+          "y": 123.38420487231791,
+          "z": -4974.224296938432
         },
         {
           "targetId": "kitchen-gibsonhouse",
-          "x": 771.5177388931515,
-          "y": 38.83877634147805,
-          "z": 4931.648481057554
+          "x": 771.0210070777704,
+          "y": -4.521825690689389,
+          "z": 4933.090377693008
         },
         {
           "targetId": "servantlanding-gibsonhouse",
-          "x": 1561.1676542074845,
-          "y": 702.264521104293,
-          "z": 4693.378307120183
+          "x": 1431.3156858699879,
+          "y": 1525.1474665197823,
+          "z": 4538.577385987371
         }
       ]
     },
@@ -60,7 +29,20 @@
       "id": "living2-gibsonhouse",
       "title": "Living2 Gibsonhouse",
       "file": "panos/Living2_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "living3-gibsonhouse",
+          "x": 4970.840105974919,
+          "y": 340.47481154614223,
+          "z": 301.1493090082581
+        },
+        {
+          "targetId": "living1-gibsonhouse",
+          "x": -4889.073756169782,
+          "y": 239.22164690731543,
+          "z": -990.0655300382039
+        }
+      ]
     },
     {
       "id": "living3-gibsonhouse",
@@ -68,28 +50,16 @@
       "file": "panos/Living3_Gibsonhouse.jpg",
       "links": [
         {
-          "targetId": "foyer-gibsonhouse",
-          "x": 4189.362258737329,
-          "y": 144.70716740437234,
-          "z": -2706.333760324291
-        },
-        {
           "targetId": "living2-gibsonhouse",
-          "x": 112.82522108632365,
-          "y": -3094.889621269997,
-          "z": 3916.2204199418297
+          "x": -548.823964921057,
+          "y": -78.18738293205736,
+          "z": 4965.356644672749
         },
         {
-          "targetId": "kitchen-gibsonhouse",
-          "x": 190.91572951029974,
-          "y": -128.46054656355201,
-          "z": 4984.947185471241
-        },
-        {
-          "targetId": "living1-gibsonhouse",
-          "x": -2088.5091306017557,
-          "y": -198.06448106051022,
-          "z": 4531.070030829625
+          "targetId": "foyer-gibsonhouse",
+          "x": 4026.7340828426622,
+          "y": 269.19824807251933,
+          "z": -2944.8038853455228
         }
       ]
     },
@@ -99,28 +69,22 @@
       "file": "panos/Foyer_Gibsonhouse.jpg",
       "links": [
         {
-          "targetId": "dining-gibsonhouse",
-          "x": -1022.238134081105,
-          "y": 519.2199991214255,
-          "z": -4862.7083706866715
-        },
-        {
-          "targetId": "living3-gibsonhouse",
-          "x": 4992.005865625719,
-          "y": 76.2937569476625,
-          "z": -95.34032478672802
-        },
-        {
           "targetId": "landing-gibsonhouse",
-          "x": 835.6026448291218,
-          "y": 2247.250763054185,
-          "z": -4382.6188058751
+          "x": 1542.7157080298764,
+          "y": 1755.016034822979,
+          "z": -4411.5794296295535
+        },
+        {
+          "targetId": "dining-gibsonhouse",
+          "x": -4989.243836705306,
+          "y": -211.8544293203149,
+          "z": -46.41079105601588
         },
         {
           "targetId": "office-gibsonhouse",
-          "x": -4542.931389340596,
-          "y": 1903.4941281835916,
-          "z": -829.2437948509246
+          "x": -4986.614149908304,
+          "y": 179.35965842355156,
+          "z": -120.94874979101779
         }
       ]
     },
@@ -184,18 +148,24 @@
       "file": "panos/kitchen_Gibsonhouse.jpg",
       "links": [
         {
-          "targetId": "dining-gibsonhouse",
-          "x": 4572.269807413693,
-          "y": 515.3133093225591,
-          "z": 1938.3255064626746
+          "targetId": "living1-gibsonhouse",
+          "x": 4141.17580479645,
+          "y": 421.2775229024568,
+          "z": -2756.408375797564
         },
         {
-          "targetId": "living3-gibsonhouse",
-          "x": 4144.3001853981605,
-          "y": 368.51625925813823,
-          "z": -2759.599889280237
+          "targetId": "dining-gibsonhouse",
+          "x": 4607.977692730595,
+          "y": 290.4595999266223,
+          "z": 1897.0258344060783
         }
       ]
+    },
+    {
+      "id": "dining-gibsonhouse",
+      "title": "Dining Gibsonhouse",
+      "file": "panos/Dining_Gibsonhouse.jpg",
+      "links": []
     }
   ]
 }
