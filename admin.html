@@ -1068,7 +1068,20 @@
     raycaster.setFromCamera(mouse, editViewer.camera);
     var hits = raycaster.intersectObject(editPanoObj, true);
     if (hits.length > 0) {
-      pendingPoint = hits[0].point.clone();
+      var point = hits[0].point;
+      var panoWorldPos = editPanoObj.getWorldPosition(new THREE.Vector3());
+      // THE ACTUAL BUG: Panolens scales the panorama mesh -1 on the X axis
+      // internally (needed to map the equirectangular texture correctly
+      // from inside the sphere). A raw raycaster hit has to be corrected
+      // for that before it's usable as a marker's local position — this is
+      // exactly what Panolens' own built-in coordinate tool does. Skipping
+      // this negation is what caused every "marker in the wrong spot"
+      // report so far.
+      pendingPoint = new THREE.Vector3(
+        -(point.x - panoWorldPos.x),
+        (point.y - panoWorldPos.y),
+        (point.z - panoWorldPos.z)
+      );
       pendingMarker = new PANOLENS.Infospot(400);
       pendingMarker.position.copy(pendingPoint);
       pendingMarker.addHoverText("New marker — pick a destination below");

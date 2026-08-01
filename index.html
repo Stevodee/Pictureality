@@ -345,22 +345,21 @@
     buildGallery();
   }
 
-  // Panolens fires this on its own Infospot-link clicks (built-in hotspot
-  // navigation) — keep our title bar and gallery highlight in sync with it.
-  viewer.addEventListener("panolens-viewer-handler", function (evt) {
-    if (evt && evt.data && evt.data.method === "setPanorama") {
-      var target = evt.data.data;
-      var found = Object.keys(panoObjects).filter(function (id) {
-        return panoObjects[id] === target;
-      })[0];
-      if (found) {
-        currentId = found;
-        var entry = sceneList.filter(function (s) { return s.id === found; })[0];
-        if (entry) titleNameEl.textContent = entry.title;
-        buildGallery();
-      }
-    }
-  });
+  // Navigating via an in-scene hotspot (as opposed to the gallery rail) also
+  // tweens the initial view in the target panorama to face the direction
+  // this specific hotspot pointed — so arriving in the next room feels like
+  // a continuation of the direction you were already looking, rather than
+  // dumping you at that panorama's arbitrary default heading.
+  function navigateViaLink(link) {
+    if (link.targetId === currentId || !panoObjects[link.targetId]) return;
+    var entry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
+    if (!entry) return;
+    currentId = link.targetId;
+    titleNameEl.textContent = entry.title;
+    viewer.setPanorama(panoObjects[link.targetId]);
+    viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800);
+    buildGallery();
+  }
 
   // ==========================================================================
   // Boot — fetch config.json (built by admin.html), build all panoramas,
@@ -421,14 +420,21 @@
         });
       });
 
-      // Wire up hotspot links between panoramas (Panolens' built-in navigation)
+      // Build hotspot markers by hand (rather than Panolens' .link() shorthand)
+      // so each one can carry the target room's name as hover text, and so
+      // clicking it can trigger the entry-heading tween above.
       panoramas.forEach(function (p) {
         var source = panoObjects[p.id];
         (p.links || []).forEach(function (link) {
           var target = panoObjects[link.targetId];
-          if (source && target) {
-            source.link(target, new THREE.Vector3(link.x, link.y, link.z));
-          }
+          var targetEntry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
+          if (!source || !target || !targetEntry) return;
+
+          var spot = new PANOLENS.Infospot(400);
+          spot.position.set(link.x, link.y, link.z);
+          spot.addHoverText(targetEntry.title);
+          spot.addEventListener("click", function () { navigateViaLink(link); });
+          source.add(spot);
         });
       });
 
