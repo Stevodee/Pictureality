@@ -272,10 +272,32 @@
   }
 
   #hotspot-panel { display: none; }
+  #hotspot-panel.active {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: var(--bg);
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+  }
+  .hp-header {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 20px;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--line);
+  }
+  .hp-header h2 { margin: 0; }
+  .hp-body { padding: 16px 20px 60px; max-width: 900px; margin: 0 auto; }
   #hotspot-viewer {
-    width: 100%; height: 360px;
+    width: 100%; height: 78vh;
     background: #000;
-    border-radius: 4px;
     position: relative;
     cursor: crosshair;
   }
@@ -376,20 +398,23 @@
 </section>
 
 <section id="hotspot-panel">
-  <h2>Place hotspots for: <span id="hotspot-panel-title"></span></h2>
-  <div id="hotspot-viewer"></div>
-  <p class="hint">Click anywhere on the panorama to place a link to another location.</p>
-
-  <div id="link-picker">
-    <label for="link-target-select">Link this spot to:</label>
-    <select id="link-target-select"></select>
-    <button id="confirm-link-btn" class="small">Add Link</button>
-    <button id="cancel-link-btn" class="small secondary">Cancel</button>
+  <div class="hp-header">
+    <h2>Place hotspots for: <span id="hotspot-panel-title"></span></h2>
+    <button id="close-hotspot-btn" class="secondary small">Close</button>
   </div>
+  <div id="hotspot-viewer"></div>
+  <div class="hp-body">
+    <p class="hint">Click anywhere on the panorama to place a link to another location.</p>
 
-  <div id="link-list"></div>
-  <br>
-  <button id="close-hotspot-btn" class="secondary">Done</button>
+    <div id="link-picker">
+      <label for="link-target-select">Link this spot to:</label>
+      <select id="link-target-select"></select>
+      <button id="confirm-link-btn" class="small">Add Link</button>
+      <button id="cancel-link-btn" class="small secondary">Cancel</button>
+    </div>
+
+    <div id="link-list"></div>
+  </div>
 </section>
 
 <section id="publish-section" style="display:none;">
@@ -990,6 +1015,16 @@
   // Step: Hotspot editor
   // ==========================================================================
 
+  function syncEditCameraToContainer() {
+    if (!editViewer || !hotspotViewerEl) return;
+    var w = hotspotViewerEl.clientWidth;
+    var h = hotspotViewerEl.clientHeight;
+    if (!w || !h) return;
+    editViewer.camera.aspect = w / h;
+    editViewer.camera.updateProjectionMatrix();
+    if (editViewer.renderer) editViewer.renderer.setSize(w, h);
+  }
+
   function openHotspotEditor(id) {
     if (!currentTour) return;
     currentEditId = id;
@@ -999,8 +1034,7 @@
     setBackgroundPano(rawUrl(p.file));
 
     hotspotPanelTitle.textContent = p.title;
-    hotspotPanel.style.display = "block";
-    hotspotPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    hotspotPanel.classList.add("active");
 
     hotspotViewerEl.innerHTML = "";
     markerObjects = [];
@@ -1014,17 +1048,11 @@
       output: "console"
     });
 
-    // The main site's viewer fills the whole browser window, so Panolens'
-    // default camera setup matches it fine. This panel is a small, wide,
-    // short box instead — without forcing the camera and renderer to match
-    // its actual shape, click-to-3D-point math comes out skewed.
-    var panelW = hotspotViewerEl.clientWidth;
-    var panelH = hotspotViewerEl.clientHeight;
-    editViewer.camera.aspect = panelW / panelH;
-    editViewer.camera.updateProjectionMatrix();
-    if (editViewer.renderer) {
-      editViewer.renderer.setSize(panelW, panelH);
-    }
+    // Now that this opens fullscreen (see .active in CSS) instead of in a
+    // small embedded panel, the container's actual on-screen shape is much
+    // closer to what the live site uses — which sidesteps the class of bug
+    // where Panolens' camera aspect didn't match a small, oddly-shaped panel.
+    syncEditCameraToContainer();
 
     editPanoObj = new PANOLENS.ImagePanorama(rawUrl(p.file));
     editViewer.add(editPanoObj);
@@ -1059,6 +1087,7 @@
 
   function handleEditClick(e) {
     if (!editViewer || !editPanoObj) return;
+    syncEditCameraToContainer();
     var rect = editContainer.getBoundingClientRect();
     var mouse = new THREE.Vector2(
       ((e.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1186,7 +1215,7 @@
   }
 
   el("close-hotspot-btn").addEventListener("click", function () {
-    hotspotPanel.style.display = "none";
+    hotspotPanel.classList.remove("active");
     linkPicker.style.display = "none";
     currentEditId = null;
     editViewer = null;
