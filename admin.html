@@ -1095,7 +1095,12 @@
     );
     var raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, editViewer.camera);
-    var hits = raycaster.intersectObject(editPanoObj, true);
+    // false = don't recurse into children. editPanoObj's children include
+    // every marker already placed on this panorama — recursing into them
+    // meant a click could hit an EXISTING marker's icon instead of the
+    // sphere itself, silently handing back that old marker's position
+    // instead of wherever you actually clicked. That's the second bug.
+    var hits = raycaster.intersectObject(editPanoObj, false);
     if (hits.length > 0) {
       var point = hits[0].point;
       var panoWorldPos = editPanoObj.getWorldPosition(new THREE.Vector3());
