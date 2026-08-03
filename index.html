@@ -357,15 +357,21 @@
   // a plain click/tap — that distinction matters because a plain click is
   // how hotspot navigation happens, and that already has its own
   // intentional heading tween (see navigateViaLink) that this must not fight.
+  // Exposed as `autoRelevel` so navigateViaLink can explicitly suppress it —
+  // a click nearly always involves a tiny bit of incidental mouse movement,
+  // which was enough to also trigger this and cause two tweens to fight,
+  // producing a jarring, seemingly-random spin.
 
-  (function setupAutoRelevel() {
+  var autoRelevel = (function setupAutoRelevel() {
     var dragStart = null;
     var dragged = false;
+    var suppressed = false;
     var DRAG_THRESHOLD_PX = 8;
     var RELEVEL_DELAY_MS = 200; // let any residual drag momentum settle first
     var RELEVEL_TWEEN_MS = 700;
 
     function relevel() {
+      if (suppressed) { suppressed = false; return; }
       var dir = new THREE.Vector3();
       viewer.camera.getWorldDirection(dir);
       var heading = Math.atan2(dir.x, dir.z);
@@ -377,6 +383,7 @@
     container.addEventListener("pointerdown", function (e) {
       dragStart = { x: e.clientX, y: e.clientY };
       dragged = false;
+      suppressed = false; // fresh gesture — clear any stale suppression
     });
 
     container.addEventListener("pointermove", function (e) {
@@ -390,6 +397,10 @@
       dragStart = null;
       dragged = false;
     });
+
+    return {
+      suppressNext: function () { suppressed = true; }
+    };
   })();
 
   var panoObjects = {};   // id -> PANOLENS.ImagePanorama
@@ -462,10 +473,26 @@
     });
   }
 
+  // Known Panolens bug: hover-text tooltips are separate floating <div>
+  // elements it creates, and it doesn't reliably clean them up when the
+  // panorama switches — so whatever marker you were hovering right before
+  // navigating can just hang there on screen afterward. Explicitly telling
+  // every marker on the outgoing panorama to clean up its own hover element
+  // right before switching is the documented fix.
+  function cleanupHoverElements() {
+    if (viewer.panorama && viewer.panorama.children) {
+      viewer.panorama.children.forEach(function (c) {
+        if (c.removeHoverElement) c.removeHoverElement();
+        if (c.hide) c.hide();
+      });
+    }
+  }
+
   function switchTo(id) {
     if (id === currentId || !panoObjects[id]) return;
     var entry = sceneList.filter(function (s) { return s.id === id; })[0];
     if (!entry) return;
+    cleanupHoverElements();
     currentId = id;
     titleNameEl.textContent = entry.title;
     viewer.setPanorama(panoObjects[id]);
@@ -481,10 +508,33 @@
     if (link.targetId === currentId || !panoObjects[link.targetId]) return;
     var entry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
     if (!entry) return;
+    var target = panoObjects[link.targetId];
+
+    // Calling tweenControlCenter immediately after setPanorama() was the
+    // bug — Panolens hadn't actually finished making the new panorama
+    // "current" yet, so the tween had nothing to act on and silently did
+    // nothing (view just stayed wherever it was). Waiting for the
+    // panorama's own 'enter-fade-start' event fires the tween once
+    // Panolens is actually ready for it. The short fallback timer is
+    // insurance in case that event's timing ever differs.
+    var tweened = false;
+    function doHeadingTween() {
+      if (tweened) return;
+      tweened = true;
+      viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800);
+    }
+    function onEnter() {
+      target.removeEventListener("enter-fade-start", onEnter);
+      doHeadingTween();
+    }
+    target.addEventListener("enter-fade-start", onEnter);
+    setTimeout(doHeadingTween, 300);
+
+    cleanupHoverElements();
+    autoRelevel.suppressNext();
     currentId = link.targetId;
     titleNameEl.textContent = entry.title;
-    viewer.setPanorama(panoObjects[link.targetId]);
-    viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800);
+    viewer.setPanorama(target);
     buildGallery();
   }
 
