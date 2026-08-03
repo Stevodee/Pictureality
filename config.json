@@ -4,13 +4,39 @@
       "id": "living3-gibsonhouse",
       "title": "Living3 Gibsonhouse",
       "file": "panos/Living3_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "foyer-gibsonhouse",
+          "x": -4019.332871174586,
+          "y": 248.46883569165576,
+          "z": -2955.2360544058215
+        },
+        {
+          "targetId": "kitchen-gibsonhouse",
+          "x": -90.50417912110561,
+          "y": -34.09366604855558,
+          "z": 4993.917294559661
+        }
+      ]
     },
     {
       "id": "foyer-gibsonhouse",
       "title": "Foyer Gibsonhouse",
       "file": "panos/Foyer_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "dining-gibsonhouse",
+          "x": 389.79640747549513,
+          "y": -76.75763519328495,
+          "z": -4976.55569736514
+        },
+        {
+          "targetId": "living3-gibsonhouse",
+          "x": -4981.705346340859,
+          "y": 110.93565779459607,
+          "z": -265.91487138224596
+        }
+      ]
     },
     {
       "id": "landing-gibsonhouse",
@@ -70,13 +96,39 @@
       "id": "kitchen-gibsonhouse",
       "title": "kitchen Gibsonhouse",
       "file": "panos/kitchen_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "living1-gibsonhouse",
+          "x": -4151.405252480615,
+          "y": 346.0930446709318,
+          "z": -2750.274429488843
+        },
+        {
+          "targetId": "dining-gibsonhouse",
+          "x": -4593.578816541623,
+          "y": 340.25580971346096,
+          "z": 1929.0842850140862
+        }
+      ]
     },
     {
       "id": "dining-gibsonhouse",
       "title": "Dining Gibsonhouse",
       "file": "panos/Dining_Gibsonhouse.jpg",
-      "links": []
+      "links": [
+        {
+          "targetId": "kitchen-gibsonhouse",
+          "x": 3750.454640237803,
+          "y": -102.00536657161784,
+          "z": -3296.404731295986
+        },
+        {
+          "targetId": "foyer-gibsonhouse",
+          "x": -4223.547441413271,
+          "y": 101.06183612918295,
+          "z": -2656.8374547520993
+        }
+      ]
     },
     {
       "id": "living1-gibsonhouse",
