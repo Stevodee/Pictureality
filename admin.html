@@ -409,6 +409,12 @@
     <div id="link-picker">
       <label for="link-target-select">Link this spot to:</label>
       <select id="link-target-select"></select>
+      <label for="link-type-select" style="margin-top:8px;">Marker type:</label>
+      <select id="link-type-select">
+        <option value="door">Doorway (default)</option>
+        <option value="stairs">Stairs</option>
+        <option value="info">Info point</option>
+      </select>
       <button id="confirm-link-btn" class="small">Add Link</button>
       <button id="cancel-link-btn" class="small secondary">Cancel</button>
     </div>
@@ -490,6 +496,7 @@
   var hotspotViewerEl = el("hotspot-viewer");
   var linkPicker = el("link-picker");
   var linkTargetSelect = el("link-target-select");
+  var linkTypeSelect = el("link-type-select");
   var linkList = el("link-list");
 
   var publishSection = el("publish-section");
@@ -538,6 +545,32 @@
 
   function rawUrl(path) {
     return "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/main/" + path;
+  }
+
+  // Kept identical to the copy in index.html so markers preview here exactly
+  // as they'll look live. "door" (the default) returns null, meaning use
+  // Panolens' own built-in look.
+  function makeInfospotIcon(type) {
+    var glyphs = { stairs: { color: "#5a9e6f", glyph: "≡" }, info: { color: "#4a90d9", glyph: "i" } };
+    var cfg = glyphs[type];
+    if (!cfg) return null;
+    var size = 128;
+    var canvas = document.createElement("canvas");
+    canvas.width = size; canvas.height = size;
+    var ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    ctx.fillStyle = cfg.color;
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#0b0d10";
+    ctx.stroke();
+    ctx.fillStyle = "#0b0d10";
+    ctx.font = "bold " + Math.round(size * 0.5) + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(cfg.glyph, size / 2, size / 2 + 4);
+    return canvas.toDataURL("image/png");
   }
 
   function markUnsaved() {
@@ -1116,7 +1149,7 @@
         (point.y - panoWorldPos.y),
         (point.z - panoWorldPos.z)
       );
-      pendingMarker = new PANOLENS.Infospot(400);
+      pendingMarker = new PANOLENS.Infospot(300);
       pendingMarker.position.copy(pendingPoint);
       pendingMarker.addHoverText("New marker — pick a destination below");
       editPanoObj.add(pendingMarker);
@@ -1145,20 +1178,21 @@
   el("confirm-link-btn").addEventListener("click", function () {
     if (!pendingPoint || !currentTour) return;
     var targetId = linkTargetSelect.value;
+    var type = linkTypeSelect.value;
     var p = currentTour.panoramas.filter(function (x) { return x.id === currentEditId; })[0];
     if (!p) return;
     if (!p.links) p.links = [];
-    var link = { targetId: targetId, x: pendingPoint.x, y: pendingPoint.y, z: pendingPoint.z };
+    var link = { targetId: targetId, type: type, x: pendingPoint.x, y: pendingPoint.y, z: pendingPoint.z };
     p.links.push(link);
 
+    // Rebuild rather than reuse the plain preview marker — Infospot's icon
+    // texture isn't something that can be swapped after creation, and we
+    // don't know the chosen type until this exact moment.
     if (pendingMarker) {
-      var target = currentTour.panoramas.filter(function (x) { return x.id === targetId; })[0];
-      pendingMarker.addHoverText(target ? target.title : targetId);
-      markerObjects.push({ link: link, obj: pendingMarker });
+      editPanoObj.remove(pendingMarker);
       pendingMarker = null;
-    } else {
-      addVisualMarker(link);
     }
+    addVisualMarker(link);
 
     markUnsaved();
     renderPanoramaTable();
@@ -1177,7 +1211,8 @@
   });
 
   function addVisualMarker(link) {
-    var marker = new PANOLENS.Infospot(400);
+    var icon = makeInfospotIcon(link.type);
+    var marker = icon ? new PANOLENS.Infospot(300, icon) : new PANOLENS.Infospot(300);
     marker.position.set(link.x, link.y, link.z);
     var target = currentTour.panoramas.filter(function (p) { return p.id === link.targetId; })[0];
     marker.addHoverText(target ? target.title : link.targetId);

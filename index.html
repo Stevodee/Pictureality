@@ -66,6 +66,42 @@
     inset: 0;
   }
 
+  /* ---- UI hide/show toggle — stays visible even when everything else hides ---- */
+  #ui-toggle-btn {
+    position: absolute;
+    bottom: 18px; right: 20px;
+    z-index: 30;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    background: rgba(20, 23, 28, 0.75);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    padding: 7px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+  }
+
+  #ui-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  #topbar, #gallery {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    opacity: 1;
+  }
+
+  body.ui-hidden #topbar {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+
+  body.ui-hidden #gallery {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+  }
+
   /* ---- top bar: title + heading readout (the "signature" detail) ---- */
   #topbar {
     position: absolute;
@@ -250,6 +286,8 @@
 
 <div id="viewer-container"></div>
 
+<button id="ui-toggle-btn" title="Hide/show interface (H)">UI</button>
+
 <div id="topbar">
   <div id="scene-title">LOCATION<span id="scene-title-name">—</span></div>
   <div id="heading-readout">
@@ -283,6 +321,7 @@
   var headingDegEl = document.getElementById("heading-degrees");
   var needleEl = document.getElementById("compass-needle");
   var galleryEl = document.getElementById("gallery");
+  var uiToggleBtn = document.getElementById("ui-toggle-btn");
 
   var viewer = new PANOLENS.Viewer({
     container: container,
@@ -290,6 +329,68 @@
     autoRotate: false,
     output: "console"
   });
+
+  // ==========================================================================
+  // UI hide/show toggle — click the button or press H
+  // ==========================================================================
+
+  function toggleUI() {
+    document.body.classList.toggle("ui-hidden");
+  }
+
+  uiToggleBtn.addEventListener("click", toggleUI);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "h" || e.key === "H") {
+      // Don't hijack "h" while the person is typing somewhere (defensive,
+      // this page has no text inputs today, but harmless to guard anyway).
+      var tag = (document.activeElement && document.activeElement.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      toggleUI();
+    }
+  });
+
+  // ==========================================================================
+  // Auto-relevel to horizontal after a look-around drag
+  // ==========================================================================
+  // Only fires after an actual drag (real mouse/touch movement), never after
+  // a plain click/tap — that distinction matters because a plain click is
+  // how hotspot navigation happens, and that already has its own
+  // intentional heading tween (see navigateViaLink) that this must not fight.
+
+  (function setupAutoRelevel() {
+    var dragStart = null;
+    var dragged = false;
+    var DRAG_THRESHOLD_PX = 8;
+    var RELEVEL_DELAY_MS = 200; // let any residual drag momentum settle first
+    var RELEVEL_TWEEN_MS = 700;
+
+    function relevel() {
+      var dir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dir);
+      var heading = Math.atan2(dir.x, dir.z);
+      var R = 5000;
+      var target = new THREE.Vector3(Math.sin(heading) * R, 0, Math.cos(heading) * R);
+      viewer.tweenControlCenter(target, RELEVEL_TWEEN_MS);
+    }
+
+    container.addEventListener("pointerdown", function (e) {
+      dragStart = { x: e.clientX, y: e.clientY };
+      dragged = false;
+    });
+
+    container.addEventListener("pointermove", function (e) {
+      if (!dragStart) return;
+      var dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) dragged = true;
+    });
+
+    container.addEventListener("pointerup", function () {
+      if (dragged) setTimeout(relevel, RELEVEL_DELAY_MS);
+      dragStart = null;
+      dragged = false;
+    });
+  })();
 
   var panoObjects = {};   // id -> PANOLENS.ImagePanorama
   var sceneList = [];     // ordered [{id, title, file}]
@@ -315,6 +416,32 @@
 
   function resolveUrl(file) {
     return new URL(file, window.location.href).toString();
+  }
+
+  // Draws a small colored icon on an offscreen canvas and returns it as a
+  // data URL — no external image files to host or go stale. "door" (the
+  // default) returns null, which just uses Panolens' own built-in look.
+  function makeInfospotIcon(type) {
+    var glyphs = { stairs: { color: "#5a9e6f", glyph: "≡" }, info: { color: "#4a90d9", glyph: "i" } };
+    var cfg = glyphs[type];
+    if (!cfg) return null;
+    var size = 128;
+    var canvas = document.createElement("canvas");
+    canvas.width = size; canvas.height = size;
+    var ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    ctx.fillStyle = cfg.color;
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#0b0d10";
+    ctx.stroke();
+    ctx.fillStyle = "#0b0d10";
+    ctx.font = "bold " + Math.round(size * 0.5) + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(cfg.glyph, size / 2, size / 2 + 4);
+    return canvas.toDataURL("image/png");
   }
 
   function buildGallery() {
@@ -430,7 +557,8 @@
           var targetEntry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
           if (!source || !target || !targetEntry) return;
 
-          var spot = new PANOLENS.Infospot(400);
+          var icon = makeInfospotIcon(link.type);
+          var spot = icon ? new PANOLENS.Infospot(300, icon) : new PANOLENS.Infospot(300);
           spot.position.set(link.x, link.y, link.z);
           spot.addHoverText(targetEntry.title);
           spot.addEventListener("click", function () { navigateViaLink(link); });
