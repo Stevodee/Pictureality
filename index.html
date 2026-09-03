@@ -330,6 +330,24 @@
     output: "console"
   });
 
+  // Panolens' OrbitControls has its own built-in momentum/fling-on-release
+  // system (momentumDampingFactor, default 0.90) that keeps the camera
+  // spinning for a while after a fast drag release — entirely independent
+  // of this app's own auto-relevel logic below. THIS was the "whip pan":
+  // not a bug in relevel()'s math (confirmed via live per-frame heading
+  // logging — the swing matched a textbook 0.90-damping decay curve, and
+  // relevel()'s own target heading was always identical to its start
+  // heading, exactly as intended). Panolens' native momentum was just
+  // still unwinding on its own, concurrently with our relevel tween,
+  // fighting it for control of the camera and landing 80-100° away from
+  // wherever the tween was actually aimed. This app implements its own
+  // deliberate gentle relevel-to-level behavior rather than a fling-spin
+  // interaction, so native momentum is turned off here via its public
+  // property — nothing in the pinned minified build is touched.
+  if (viewer.OrbitControls) {
+    viewer.OrbitControls.momentumDampingFactor = 0;
+  }
+
   // ==========================================================================
   // UI hide/show toggle — click the button or press H
   // ==========================================================================
@@ -370,42 +388,133 @@
     var RELEVEL_DELAY_MS = 200; // let any residual drag momentum settle first
     var RELEVEL_TWEEN_MS = 700;
 
+    var pendingTimer = null;
+    var scheduledForSeq = null;
+
+    // Fallback heading used when the current look direction is too close to
+    // straight up/down for its horizontal (x,z) component to be trustworthy
+    // — normalizing a near-zero vector there amplifies noise into an
+    // arbitrary heading. Captured just before each drag starts, so it's
+    // always a recent, known-good value rather than an arbitrary default.
+    var lastGoodHeadingX = 0;
+    var lastGoodHeadingZ = 1;
+
+    // Vector-space relevel — deliberately does NOT reconstruct a heading via
+    // Math.atan2(dir.x, dir.z) and re-derive sin/cos from it. That round trip
+    // was the suspected "whip pan" cause; it turned out not to be, but this
+    // form is kept because it stays in the same vector space Panolens
+    // already operates in rather than round-tripping through an angle.
     function relevel() {
       if (suppressed) { suppressed = false; return; }
+      // A later navigation (hotspot click or gallery switch) happened after
+      // this relevel was scheduled — the panorama we'd be relevel-ing is no
+      // longer the current one. Bail rather than tween the wrong scene.
+      if (scheduledForSeq !== transitionSeq) return;
       var dir = new THREE.Vector3();
       viewer.camera.getWorldDirection(dir);
-      var heading = Math.atan2(dir.x, dir.z);
+      var horizMagSq = dir.x * dir.x + dir.z * dir.z;
+      var hx, hz;
+      if (horizMagSq < 1e-4) {
+        // Looking too close to the zenith/nadir to trust this reading's
+        // heading — fall back to the last known-good heading instead of
+        // skipping the relevel outright. Pitch should always ease back to
+        // level regardless of whether heading is well-defined right now;
+        // bailing entirely left the camera visibly "stuck" tilted whenever
+        // a drag ended near straight up.
+        hx = lastGoodHeadingX;
+        hz = lastGoodHeadingZ;
+      } else {
+        var norm = Math.sqrt(horizMagSq);
+        hx = dir.x / norm;
+        hz = dir.z / norm;
+      }
       var R = 5000;
-      var target = new THREE.Vector3(Math.sin(heading) * R, 0, Math.cos(heading) * R);
-      viewer.tweenControlCenter(target, RELEVEL_TWEEN_MS);
+      // tweenControlCenter negates X internally (hv.x *= -1) before using
+      // the vector — the same mesh-mirroring convention already documented
+      // for hotspot markers (Panolens scales the panorama mesh -1 on X).
+      // Passing the camera's raw world-direction X straight through meant
+      // that internal negation flipped it, so the function computed a real
+      // angular delta between our intended heading and a horizontally
+      // mirrored version of it — and tweened toward that spurious target.
+      // This was the actual whip-pan cause. Negating X here cancels that
+      // internal negation back out, matching what link.x/y/z already do
+      // for markers.
+      var target = new THREE.Vector3(-hx * R, 0, hz * R);
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Quadratic.Out
+        : undefined;
+      viewer.tweenControlCenter(target, RELEVEL_TWEEN_MS, easing);
     }
 
     container.addEventListener("pointerdown", function (e) {
       dragStart = { x: e.clientX, y: e.clientY };
       dragged = false;
       suppressed = false; // fresh gesture — clear any stale suppression
+      // A new drag starting invalidates whatever relevel was scheduled from
+      // the previous one — without this, a relevel from a quick earlier
+      // drag could fire mid-way through this new drag, fighting it for
+      // control of the camera.
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+      // Capture a fallback heading from just before this drag begins, in
+      // case it ends aimed too close to the zenith/nadir for relevel() to
+      // compute a trustworthy heading on its own.
+      var d = new THREE.Vector3();
+      viewer.camera.getWorldDirection(d);
+      var m = Math.sqrt(d.x * d.x + d.z * d.z);
+      if (m > 0.05) {
+        lastGoodHeadingX = d.x / m;
+        lastGoodHeadingZ = d.z / m;
+      }
     });
 
-    container.addEventListener("pointermove", function (e) {
+    // pointermove/pointerup are bound to window, not container, so a drag
+    // that ends with the cursor over the top UI chrome (compass readout, UI
+    // toggle button) instead of the panorama itself still gets caught.
+    // Without this, panning up toward the zenith — exactly the case that
+    // needs relevel most — could end with the release landing on an
+    // overlay element instead of container, silently dropping the event
+    // and leaving relevel never scheduled at all.
+    window.addEventListener("pointermove", function (e) {
       if (!dragStart) return;
       var dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
-      if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD_PX) dragged = true;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > DRAG_THRESHOLD_PX) dragged = true;
     });
 
-    container.addEventListener("pointerup", function () {
-      if (dragged) setTimeout(relevel, RELEVEL_DELAY_MS);
+    window.addEventListener("pointerup", function () {
+      if (!dragStart) return; // no drag was in progress — ignore
+      if (dragged) {
+        scheduledForSeq = transitionSeq;
+        pendingTimer = setTimeout(relevel, RELEVEL_DELAY_MS);
+      }
       dragStart = null;
       dragged = false;
     });
 
     return {
-      suppressNext: function () { suppressed = true; }
+      suppressNext: function () { suppressed = true; },
+      // Called at the start of any navigation so a relevel scheduled just
+      // before the user clicked away doesn't fire late against the new scene.
+      cancelPending: function () {
+        if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+      }
     };
   })();
 
   var panoObjects = {};   // id -> PANOLENS.ImagePanorama
   var sceneList = [];     // ordered [{id, title, file}]
   var currentId = null;
+
+  // Bumped by every navigation (switchTo or navigateViaLink). Async work
+  // scheduled by one navigation (relevel timer, hotspot heading tween)
+  // captures the value at schedule time and checks it still matches before
+  // touching the camera — if a later navigation happened first, the stale
+  // callback is a no-op instead of tweening whatever panorama now happens
+  // to be current. This is what stale-callback stress testing exercises.
+  var transitionSeq = 0;
 
   function showLoading(msg) {
     loadingTextEl.textContent = msg || "LOADING PANORAMA…";
@@ -477,13 +586,21 @@
   // elements it creates, and it doesn't reliably clean them up when the
   // panorama switches — so whatever marker you were hovering right before
   // navigating can just hang there on screen afterward. Explicitly telling
-  // every marker on the outgoing panorama to clean up its own hover element
+  // every marker on the outgoing panorama to remove its own hover element
   // right before switching is the documented fix.
+  //
+  // Deliberately does NOT call Infospot's own .hide() here. That method
+  // does much more than hide the hover div — it also disables raycasting
+  // (enableRaycast(false)) and sets material.opacity = 0, with no matching
+  // .show() ever called when the user later returns to this panorama. That
+  // silently and permanently disabled every panorama's markers the first
+  // time you navigated away from it — clicks landed on nothing, with
+  // nothing to raycast against, and no error to show for it. That was the
+  // real cause of "markers sometimes disappear."
   function cleanupHoverElements() {
     if (viewer.panorama && viewer.panorama.children) {
       viewer.panorama.children.forEach(function (c) {
         if (c.removeHoverElement) c.removeHoverElement();
-        if (c.hide) c.hide();
       });
     }
   }
@@ -492,6 +609,8 @@
     if (id === currentId || !panoObjects[id]) return;
     var entry = sceneList.filter(function (s) { return s.id === id; })[0];
     if (!entry) return;
+    transitionSeq++;
+    autoRelevel.cancelPending();
     cleanupHoverElements();
     currentId = id;
     titleNameEl.textContent = entry.title;
@@ -510,6 +629,10 @@
     if (!entry) return;
     var target = panoObjects[link.targetId];
 
+    transitionSeq++;
+    var mySeq = transitionSeq;
+    autoRelevel.cancelPending();
+
     // Calling tweenControlCenter immediately after setPanorama() was the
     // bug — Panolens hadn't actually finished making the new panorama
     // "current" yet, so the tween had nothing to act on and silently did
@@ -517,14 +640,33 @@
     // panorama's own 'enter-fade-start' event fires the tween once
     // Panolens is actually ready for it. The short fallback timer is
     // insurance in case that event's timing ever differs.
+    //
+    // mySeq guards against a second bug: if the user navigates away again
+    // (another hotspot, or a gallery click) before either the event or the
+    // fallback timer fires, this closure is now stale — without the guard
+    // it would tween whatever panorama happens to be current by then.
+    // The listener is always explicitly removed (not just left for
+    // doHeadingTween's tweened-flag to short-circuit) so it can't sit on
+    // `target` forever and fire this stale closure the next time this same
+    // panorama is entered by some unrelated future navigation.
     var tweened = false;
     function doHeadingTween() {
       if (tweened) return;
       tweened = true;
-      viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800);
+      target.removeEventListener("enter-fade-start", onEnter);
+      if (mySeq !== transitionSeq) return; // superseded by a later navigation
+      // Panolens defaults to TWEEN.Easing.Exponential.Out when no easing is
+      // given — a front-loaded curve where most of the rotation happens
+      // almost immediately, then sharply tapers off. That reads as fast and
+      // choppy for a "face the room you left" pan. Quadratic.Out is a much
+      // gentler ease-out, closer to what a deliberate camera pan should
+      // feel like.
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Quadratic.Out
+        : undefined;
+      viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800, easing);
     }
     function onEnter() {
-      target.removeEventListener("enter-fade-start", onEnter);
       doHeadingTween();
     }
     target.addEventListener("enter-fade-start", onEnter);
