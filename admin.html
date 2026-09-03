@@ -1102,9 +1102,10 @@
     // addEventListener (capture phase), not .onpointerdown = ..., so this
     // can't get silently overwritten by Panolens' own handler on the same
     // element. Also explicitly remove any leftover listener from a previous
-    // session, since this container element is reused each time.
+    // session, since this container (and window, for pointerup) persists
+    // across repeated openHotspotEditor calls.
     if (editPointerDownHandler) editContainer.removeEventListener("pointerdown", editPointerDownHandler, true);
-    if (editPointerUpHandler) editContainer.removeEventListener("pointerup", editPointerUpHandler, true);
+    if (editPointerUpHandler) window.removeEventListener("pointerup", editPointerUpHandler, true);
 
     var downPos = null;
     editPointerDownHandler = function (e) { downPos = { x: e.clientX, y: e.clientY }; };
@@ -1115,7 +1116,14 @@
       downPos = null;
     };
     editContainer.addEventListener("pointerdown", editPointerDownHandler, true);
-    editContainer.addEventListener("pointerup", editPointerUpHandler, true);
+    // pointerup is bound to window, not editContainer, so a placement drag
+    // that ends with the release over the panel's own chrome (link-picker,
+    // title, Done button) or past the canvas edge still registers instead
+    // of being silently dropped. Confirmed via live testing: releases
+    // landing outside editContainer never reached its own listener at all —
+    // no error, the placement just quietly didn't happen. Same failure
+    // mode as index.html's autoRelevel had, same fix.
+    window.addEventListener("pointerup", editPointerUpHandler, true);
   }
 
   function handleEditClick(e) {
