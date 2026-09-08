@@ -504,6 +504,110 @@
     };
   })();
 
+  // ==========================================================================
+  // Idle ambient drift — after the user stops interacting, slowly continues
+  // panning in whichever direction their last drag was rotating, instead of
+  // just settling still. Purely atmospheric; never fires after a plain
+  // click (hotspot nav), only after a real drag.
+  // ==========================================================================
+  // Sequenced strictly after autoRelevel's own tween finishes — starting
+  // drift any earlier would fight relevel for control of the camera, the
+  // same class of bug documented above. Native OrbitControls momentum is
+  // already fully disabled (momentumDampingFactor = 0, set above), so there
+  // is no separate native-momentum decay window left to wait out — only
+  // this app's own relevel tween.
+  //
+  // Direction is derived from the *sign of rotation* between the heading at
+  // drag-start and the heading at drag-end (a 2D cross product in the XZ
+  // plane), not from raw pointer pixel deltas — that way this doesn't need
+  // to know or assume Panolens' internal drag-to-camera sign convention,
+  // it just asks "which way did the camera actually end up rotating."
+  //
+  // Rotation itself is driven by repeated short tweenControlCenter() calls
+  // rather than a new/untested camera API — the same function already
+  // proven correct by relevel() and the hotspot entry-heading tween, reused
+  // here with a linear easing and small per-step angle instead of a single
+  // eased pitch/heading correction.
+
+  var idleDrift = (function setupIdleDrift() {
+    var DRIFT_SPEED_DEG_PER_SEC = 2;     // slow — ambient, not a "look around"
+    var DRIFT_STEP_MS = 50;              // ~20fps nudge rate, smooth enough for this speed
+    var START_DELAY_MS = 200 /* autoRelevel's RELEVEL_DELAY_MS */
+      + 700 /* autoRelevel's RELEVEL_TWEEN_MS */
+      + 150; // small buffer so the two tweens never overlap
+
+    var dragStartDir = null;
+    var driftDirection = 0;   // -1, 0, or 1
+    var startTimer = null;
+    var stepInterval = null;
+    var scheduledForSeq = null;
+
+    function stop() {
+      if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+      if (stepInterval) { clearInterval(stepInterval); stepInterval = null; }
+    }
+
+    function step() {
+      // Same stale-callback guard as relevel(): if a navigation happened
+      // since drift was scheduled, this panorama is no longer current —
+      // stop rather than drift a scene the user has already left.
+      if (scheduledForSeq !== transitionSeq) { stop(); return; }
+      var dir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dir);
+      var horizMagSq = dir.x * dir.x + dir.z * dir.z;
+      if (horizMagSq < 1e-4) return; // too close to zenith/nadir this tick — skip, retry next tick
+      var norm = Math.sqrt(horizMagSq);
+      var hx = dir.x / norm, hz = dir.z / norm;
+
+      var theta = driftDirection * DRIFT_SPEED_DEG_PER_SEC * (DRIFT_STEP_MS / 1000) * (Math.PI / 180);
+      var cos = Math.cos(theta), sin = Math.sin(theta);
+      var nx = hx * cos - hz * sin;
+      var nz = hx * sin + hz * cos;
+
+      var R = 5000;
+      // Same X-negation convention as relevel() above — tweenControlCenter
+      // negates X internally, so this cancels that back out.
+      var target = new THREE.Vector3(-nx * R, 0, nz * R);
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Linear.None
+        : undefined;
+      viewer.tweenControlCenter(target, DRIFT_STEP_MS, easing);
+    }
+
+    function begin() {
+      if (driftDirection === 0) return;
+      scheduledForSeq = transitionSeq;
+      stepInterval = setInterval(step, DRIFT_STEP_MS);
+    }
+
+    container.addEventListener("pointerdown", function () {
+      stop();
+      driftDirection = 0;
+      dragStartDir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dragStartDir);
+    });
+
+    // Bound to window for the same reason autoRelevel's is — a drag can end
+    // with the cursor over UI chrome rather than the panorama container.
+    window.addEventListener("pointerup", function () {
+      if (!dragStartDir) return;
+      var endDir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(endDir);
+      var cross = dragStartDir.x * endDir.z - dragStartDir.z * endDir.x;
+      driftDirection = cross > 0.01 ? 1 : (cross < -0.01 ? -1 : 0);
+      dragStartDir = null;
+      stop();
+      if (driftDirection !== 0) startTimer = setTimeout(begin, START_DELAY_MS);
+    });
+
+    return {
+      // Called at the start of any navigation, same call sites as
+      // autoRelevel.cancelPending() — stops any pending/active drift so it
+      // never spins on a panorama the user has already left.
+      cancelPending: function () { stop(); }
+    };
+  })();
+
   var panoObjects = {};   // id -> PANOLENS.ImagePanorama
   var sceneList = [];     // ordered [{id, title, file}]
   var currentId = null;
@@ -611,6 +715,7 @@
     if (!entry) return;
     transitionSeq++;
     autoRelevel.cancelPending();
+    idleDrift.cancelPending();
     cleanupHoverElements();
     currentId = id;
     titleNameEl.textContent = entry.title;
@@ -632,6 +737,7 @@
     transitionSeq++;
     var mySeq = transitionSeq;
     autoRelevel.cancelPending();
+    idleDrift.cancelPending();
 
     // Calling tweenControlCenter immediately after setPanorama() was the
     // bug — Panolens hadn't actually finished making the new panorama
