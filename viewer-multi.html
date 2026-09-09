@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Panorama Viewer</title>
+
+<!--
+  ============================================================================
+  PANORAMA VIEWER — Three.js + Panolens.js, images + data hosted on GitHub
+  ============================================================================
+
+  PINNED VERSIONS (important):
+  Panolens.js hasn't been updated in years and breaks on modern Three.js.
+  three.js r105 + panolens 0.11.0 is a combo confirmed to still work together.
+  Do not "upgrade" these independently or the viewer will silently fail.
+
+  HOW THIS WORKS NOW:
+  This page no longer has any panorama list hard-coded in it. Instead it
+  fetches a file called config.json (sitting next to this file, in the same
+  repo) which lists every panorama, its title, and any hotspot links to
+  other panoramas. That file is meant to be created and edited through
+  admin.html (the companion page) rather than by hand — that's what removes
+  the typo risk of hand-editing a JS array.
+
+  IMPORTANT: because this page fetches config.json, it must be viewed
+  through its real URL (GitHub Pages or raw.githubusercontent.com) — opening
+  it by double-clicking the file on your own computer will NOT work, browsers
+  block that kind of fetch for local files for security reasons.
+
+  SETUP, ONE TIME:
+  1. Make sure this repo is PUBLIC.
+  2. Enable GitHub Pages: Settings -> Pages -> Deploy from a branch -> main -> / (root).
+  3. Open admin.html (uploaded alongside this file) through its live URL,
+     paste in a GitHub token, and use it to upload images and build
+     config.json. See admin.html's own comments for details on the token.
+-->
+
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --line: #262b33;
+    --text: #e8e6df;
+    --text-dim: #8b9099;
+    --accent: #d98a3d;
+    --accent-dim: #6b5636;
+    --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #viewer-container {
+    position: absolute;
+    inset: 0;
+  }
+
+  /* ---- UI hide/show toggle — stays visible even when everything else hides ---- */
+  #ui-toggle-btn {
+    position: absolute;
+    bottom: 18px; right: 20px;
+    z-index: 30;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    background: rgba(20, 23, 28, 0.75);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    padding: 7px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+  }
+
+  #ui-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  #topbar, #gallery {
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    opacity: 1;
+  }
+
+  body.ui-hidden #topbar {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+  }
+
+  body.ui-hidden #gallery {
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+  }
+
+  /* ---- top bar: title + heading readout (the "signature" detail) ---- */
+  #topbar {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    pointer-events: none;
+    z-index: 10;
+    background: linear-gradient(to bottom, rgba(11,13,16,0.85), transparent);
+  }
+
+  #scene-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  #scene-title span {
+    color: var(--text);
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    display: block;
+    margin-top: 2px;
+    text-transform: none;
+  }
+
+  #heading-readout {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    text-align: right;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #heading-degrees {
+    color: var(--accent);
+    font-size: 16px;
+    min-width: 3.5em;
+    display: inline-block;
+    text-align: right;
+  }
+
+  #compass-dial {
+    width: 22px; height: 22px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  #compass-needle {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 2px; height: 8px;
+    background: var(--accent);
+    transform-origin: bottom center;
+    transform: translate(-50%, -100%) rotate(0deg);
+  }
+
+  /* ---- bottom gallery rail ---- */
+  #gallery {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    gap: 10px;
+    padding: 16px 20px 20px;
+    overflow-x: auto;
+    z-index: 10;
+    background: linear-gradient(to top, rgba(11,13,16,0.9), transparent);
+    scrollbar-width: thin;
+  }
+
+  .thumb {
+    flex-shrink: 0;
+    width: 96px; height: 64px;
+    border-radius: 3px;
+    border: 1px solid var(--line);
+    background: var(--panel) center/cover no-repeat;
+    cursor: pointer;
+    position: relative;
+    opacity: 0.6;
+    transition: opacity 0.15s ease, border-color 0.15s ease;
+  }
+
+  .thumb:hover { opacity: 0.9; }
+
+  .thumb.active {
+    opacity: 1;
+    border-color: var(--accent);
+  }
+
+  .thumb-label {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.03em;
+    padding: 3px 5px;
+    background: rgba(11,13,16,0.75);
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .thumb.active .thumb-label { color: var(--accent); }
+
+  /* ---- loading state ---- */
+  #loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 20;
+    background: var(--bg);
+    transition: opacity 0.3s ease;
+  }
+
+  #loading.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  #loading-ring {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    animation: spin 0.9s linear infinite;
+  }
+
+  #loading-text {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- error banner ---- */
+  #error-banner {
+    position: absolute;
+    top: 70px; left: 24px; right: 24px;
+    z-index: 15;
+    background: var(--panel);
+    border: 1px solid #7a3d2e;
+    border-left: 3px solid #c4553e;
+    padding: 12px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--text-dim);
+    display: none;
+    max-width: 480px;
+  }
+
+  #error-banner.show { display: block; }
+  #error-banner strong { color: var(--text); }
+
+  #fullscreen-btn {
+    position: absolute;
+    top: 20px; right: 24px;
+    z-index: 11;
+    background: transparent;
+    border: none;
+    display: none; /* shown only after we know a title bar layout works */
+  }
+</style>
+</head>
+<body>
+
+<div id="viewer-container"></div>
+
+<button id="ui-toggle-btn" title="Hide/show interface (H)">UI</button>
+
+<div id="topbar">
+  <div id="scene-title">LOCATION<span id="scene-title-name">—</span></div>
+  <div id="heading-readout">
+    <div id="compass-dial"><div id="compass-needle"></div></div>
+    <span id="heading-degrees">000°</span>
+  </div>
+</div>
+
+<div id="error-banner"></div>
+
+<div id="gallery"></div>
+
+<div id="loading">
+  <div id="loading-ring"></div>
+  <div id="loading-text">LOADING PANORAMA…</div>
+</div>
+
+<!-- Pinned, compatible versions — see comment block above -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/105/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/panolens@0.11.0/build/panolens.min.js"></script>
+
+<script>
+(function () {
+  "use strict";
+
+  var container = document.getElementById("viewer-container");
+  var loadingEl = document.getElementById("loading");
+  var loadingTextEl = document.getElementById("loading-text");
+  var errorEl = document.getElementById("error-banner");
+  var titleNameEl = document.getElementById("scene-title-name");
+  var headingDegEl = document.getElementById("heading-degrees");
+  var needleEl = document.getElementById("compass-needle");
+  var galleryEl = document.getElementById("gallery");
+  var uiToggleBtn = document.getElementById("ui-toggle-btn");
+
+  var viewer = new PANOLENS.Viewer({
+    container: container,
+    controlBar: true,
+    autoRotate: false,
+    output: "console"
+  });
+
+  // Panolens' OrbitControls has its own built-in momentum/fling-on-release
+  // system (momentumDampingFactor, default 0.90) that keeps the camera
+  // spinning for a while after a fast drag release — entirely independent
+  // of this app's own auto-relevel logic below. THIS was the "whip pan":
+  // not a bug in relevel()'s math (confirmed via live per-frame heading
+  // logging — the swing matched a textbook 0.90-damping decay curve, and
+  // relevel()'s own target heading was always identical to its start
+  // heading, exactly as intended). Panolens' native momentum was just
+  // still unwinding on its own, concurrently with our relevel tween,
+  // fighting it for control of the camera and landing 80-100° away from
+  // wherever the tween was actually aimed. This app implements its own
+  // deliberate gentle relevel-to-level behavior rather than a fling-spin
+  // interaction, so native momentum is turned off here via its public
+  // property — nothing in the pinned minified build is touched.
+  if (viewer.OrbitControls) {
+    viewer.OrbitControls.momentumDampingFactor = 0;
+  }
+
+  // ==========================================================================
+  // UI hide/show toggle — click the button or press H
+  // ==========================================================================
+
+  function toggleUI() {
+    document.body.classList.toggle("ui-hidden");
+  }
+
+  uiToggleBtn.addEventListener("click", toggleUI);
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "h" || e.key === "H") {
+      // Don't hijack "h" while the person is typing somewhere (defensive,
+      // this page has no text inputs today, but harmless to guard anyway).
+      var tag = (document.activeElement && document.activeElement.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      toggleUI();
+    }
+  });
+
+  // ==========================================================================
+  // Auto-relevel to horizontal after a look-around drag
+  // ==========================================================================
+  // Only fires after an actual drag (real mouse/touch movement), never after
+  // a plain click/tap — that distinction matters because a plain click is
+  // how hotspot navigation happens, and that already has its own
+  // intentional heading tween (see navigateViaLink) that this must not fight.
+  // Exposed as `autoRelevel` so navigateViaLink can explicitly suppress it —
+  // a click nearly always involves a tiny bit of incidental mouse movement,
+  // which was enough to also trigger this and cause two tweens to fight,
+  // producing a jarring, seemingly-random spin.
+
+  var autoRelevel = (function setupAutoRelevel() {
+    var dragStart = null;
+    var dragged = false;
+    var suppressed = false;
+    var DRAG_THRESHOLD_PX = 8;
+    var RELEVEL_DELAY_MS = 200; // let any residual drag momentum settle first
+    var RELEVEL_TWEEN_MS = 700;
+
+    var pendingTimer = null;
+    var scheduledForSeq = null;
+
+    // Fallback heading used when the current look direction is too close to
+    // straight up/down for its horizontal (x,z) component to be trustworthy
+    // — normalizing a near-zero vector there amplifies noise into an
+    // arbitrary heading. Captured just before each drag starts, so it's
+    // always a recent, known-good value rather than an arbitrary default.
+    var lastGoodHeadingX = 0;
+    var lastGoodHeadingZ = 1;
+
+    // Vector-space relevel — deliberately does NOT reconstruct a heading via
+    // Math.atan2(dir.x, dir.z) and re-derive sin/cos from it. That round trip
+    // was the suspected "whip pan" cause; it turned out not to be, but this
+    // form is kept because it stays in the same vector space Panolens
+    // already operates in rather than round-tripping through an angle.
+    function relevel() {
+      if (suppressed) { suppressed = false; return; }
+      // A later navigation (hotspot click or gallery switch) happened after
+      // this relevel was scheduled — the panorama we'd be relevel-ing is no
+      // longer the current one. Bail rather than tween the wrong scene.
+      if (scheduledForSeq !== transitionSeq) return;
+      var dir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dir);
+      var horizMagSq = dir.x * dir.x + dir.z * dir.z;
+      var hx, hz;
+      if (horizMagSq < 1e-4) {
+        // Looking too close to the zenith/nadir to trust this reading's
+        // heading — fall back to the last known-good heading instead of
+        // skipping the relevel outright. Pitch should always ease back to
+        // level regardless of whether heading is well-defined right now;
+        // bailing entirely left the camera visibly "stuck" tilted whenever
+        // a drag ended near straight up.
+        hx = lastGoodHeadingX;
+        hz = lastGoodHeadingZ;
+      } else {
+        var norm = Math.sqrt(horizMagSq);
+        hx = dir.x / norm;
+        hz = dir.z / norm;
+      }
+      var R = 5000;
+      // tweenControlCenter negates X internally (hv.x *= -1) before using
+      // the vector — the same mesh-mirroring convention already documented
+      // for hotspot markers (Panolens scales the panorama mesh -1 on X).
+      // Passing the camera's raw world-direction X straight through meant
+      // that internal negation flipped it, so the function computed a real
+      // angular delta between our intended heading and a horizontally
+      // mirrored version of it — and tweened toward that spurious target.
+      // This was the actual whip-pan cause. Negating X here cancels that
+      // internal negation back out, matching what link.x/y/z already do
+      // for markers.
+      var target = new THREE.Vector3(-hx * R, 0, hz * R);
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Quadratic.Out
+        : undefined;
+      viewer.tweenControlCenter(target, RELEVEL_TWEEN_MS, easing);
+    }
+
+    container.addEventListener("pointerdown", function (e) {
+      dragStart = { x: e.clientX, y: e.clientY };
+      dragged = false;
+      suppressed = false; // fresh gesture — clear any stale suppression
+      // A new drag starting invalidates whatever relevel was scheduled from
+      // the previous one — without this, a relevel from a quick earlier
+      // drag could fire mid-way through this new drag, fighting it for
+      // control of the camera.
+      if (pendingTimer) {
+        clearTimeout(pendingTimer);
+        pendingTimer = null;
+      }
+      // Capture a fallback heading from just before this drag begins, in
+      // case it ends aimed too close to the zenith/nadir for relevel() to
+      // compute a trustworthy heading on its own.
+      var d = new THREE.Vector3();
+      viewer.camera.getWorldDirection(d);
+      var m = Math.sqrt(d.x * d.x + d.z * d.z);
+      if (m > 0.05) {
+        lastGoodHeadingX = d.x / m;
+        lastGoodHeadingZ = d.z / m;
+      }
+    });
+
+    // pointermove/pointerup are bound to window, not container, so a drag
+    // that ends with the cursor over the top UI chrome (compass readout, UI
+    // toggle button) instead of the panorama itself still gets caught.
+    // Without this, panning up toward the zenith — exactly the case that
+    // needs relevel most — could end with the release landing on an
+    // overlay element instead of container, silently dropping the event
+    // and leaving relevel never scheduled at all.
+    window.addEventListener("pointermove", function (e) {
+      if (!dragStart) return;
+      var dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > DRAG_THRESHOLD_PX) dragged = true;
+    });
+
+    window.addEventListener("pointerup", function () {
+      if (!dragStart) return; // no drag was in progress — ignore
+      if (dragged) {
+        scheduledForSeq = transitionSeq;
+        pendingTimer = setTimeout(relevel, RELEVEL_DELAY_MS);
+      }
+      dragStart = null;
+      dragged = false;
+    });
+
+    return {
+      suppressNext: function () { suppressed = true; },
+      // Called at the start of any navigation so a relevel scheduled just
+      // before the user clicked away doesn't fire late against the new scene.
+      cancelPending: function () {
+        if (pendingTimer) { clearTimeout(pendingTimer); pendingTimer = null; }
+      }
+    };
+  })();
+
+  // ==========================================================================
+  // Idle ambient drift — after the user stops interacting, slowly continues
+  // panning in whichever direction their last drag was rotating, instead of
+  // just settling still. Purely atmospheric; never fires after a plain
+  // click (hotspot nav), only after a real drag.
+  // ==========================================================================
+  // Sequenced strictly after autoRelevel's own tween finishes — starting
+  // drift any earlier would fight relevel for control of the camera, the
+  // same class of bug documented above. Native OrbitControls momentum is
+  // already fully disabled (momentumDampingFactor = 0, set above), so there
+  // is no separate native-momentum decay window left to wait out — only
+  // this app's own relevel tween.
+  //
+  // Direction is derived from the *sign of rotation* between the heading at
+  // drag-start and the heading at drag-end (a 2D cross product in the XZ
+  // plane), not from raw pointer pixel deltas — that way this doesn't need
+  // to know or assume Panolens' internal drag-to-camera sign convention,
+  // it just asks "which way did the camera actually end up rotating."
+  //
+  // Rotation itself is driven by repeated short tweenControlCenter() calls
+  // rather than a new/untested camera API — the same function already
+  // proven correct by relevel() and the hotspot entry-heading tween, reused
+  // here with a linear easing and small per-step angle instead of a single
+  // eased pitch/heading correction.
+
+  var idleDrift = (function setupIdleDrift() {
+    var DRIFT_SPEED_DEG_PER_SEC = 2;     // slow — ambient, not a "look around"
+    var DRIFT_STEP_MS = 50;              // ~20fps nudge rate, smooth enough for this speed
+    var START_DELAY_MS = 200 /* autoRelevel's RELEVEL_DELAY_MS */
+      + 700 /* autoRelevel's RELEVEL_TWEEN_MS */
+      + 150; // small buffer so the two tweens never overlap
+
+    var dragStartDir = null;
+    var driftDirection = 0;   // -1, 0, or 1
+    var startTimer = null;
+    var stepInterval = null;
+    var scheduledForSeq = null;
+
+    function stop() {
+      if (startTimer) { clearTimeout(startTimer); startTimer = null; }
+      if (stepInterval) { clearInterval(stepInterval); stepInterval = null; }
+    }
+
+    function step() {
+      // Same stale-callback guard as relevel(): if a navigation happened
+      // since drift was scheduled, this panorama is no longer current —
+      // stop rather than drift a scene the user has already left.
+      if (scheduledForSeq !== transitionSeq) { stop(); return; }
+      var dir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dir);
+      var horizMagSq = dir.x * dir.x + dir.z * dir.z;
+      if (horizMagSq < 1e-4) return; // too close to zenith/nadir this tick — skip, retry next tick
+      var norm = Math.sqrt(horizMagSq);
+      var hx = dir.x / norm, hz = dir.z / norm;
+
+      var theta = driftDirection * DRIFT_SPEED_DEG_PER_SEC * (DRIFT_STEP_MS / 1000) * (Math.PI / 180);
+      var cos = Math.cos(theta), sin = Math.sin(theta);
+      var nx = hx * cos - hz * sin;
+      var nz = hx * sin + hz * cos;
+
+      var R = 5000;
+      // Same X-negation convention as relevel() above — tweenControlCenter
+      // negates X internally, so this cancels that back out.
+      var target = new THREE.Vector3(-nx * R, 0, nz * R);
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Linear.None
+        : undefined;
+      viewer.tweenControlCenter(target, DRIFT_STEP_MS, easing);
+    }
+
+    function begin() {
+      if (driftDirection === 0) return;
+      scheduledForSeq = transitionSeq;
+      stepInterval = setInterval(step, DRIFT_STEP_MS);
+    }
+
+    container.addEventListener("pointerdown", function () {
+      stop();
+      driftDirection = 0;
+      dragStartDir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dragStartDir);
+    });
+
+    // Bound to window for the same reason autoRelevel's is — a drag can end
+    // with the cursor over UI chrome rather than the panorama container.
+    window.addEventListener("pointerup", function () {
+      if (!dragStartDir) return;
+      var endDir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(endDir);
+      var cross = dragStartDir.x * endDir.z - dragStartDir.z * endDir.x;
+      driftDirection = cross > 0.01 ? 1 : (cross < -0.01 ? -1 : 0);
+      dragStartDir = null;
+      stop();
+      if (driftDirection !== 0) startTimer = setTimeout(begin, START_DELAY_MS);
+    });
+
+    return {
+      // Called at the start of any navigation, same call sites as
+      // autoRelevel.cancelPending() — stops any pending/active drift so it
+      // never spins on a panorama the user has already left.
+      cancelPending: function () { stop(); }
+    };
+  })();
+
+  var panoObjects = {};   // id -> PANOLENS.ImagePanorama
+  var sceneList = [];     // ordered [{id, title, file}]
+  var currentId = null;
+
+  // Bumped by every navigation (switchTo or navigateViaLink). Async work
+  // scheduled by one navigation (relevel timer, hotspot heading tween)
+  // captures the value at schedule time and checks it still matches before
+  // touching the camera — if a later navigation happened first, the stale
+  // callback is a no-op instead of tweening whatever panorama now happens
+  // to be current. This is what stale-callback stress testing exercises.
+  var transitionSeq = 0;
+
+  function showLoading(msg) {
+    loadingTextEl.textContent = msg || "LOADING PANORAMA…";
+    loadingEl.classList.remove("hidden");
+  }
+
+  function hideLoading() {
+    loadingEl.classList.add("hidden");
+  }
+
+  function showError(html) {
+    errorEl.innerHTML = html;
+    errorEl.classList.add("show");
+  }
+
+  function clearError() {
+    errorEl.classList.remove("show");
+  }
+
+  function resolveUrl(file) {
+    return new URL(file, window.location.href).toString();
+  }
+
+  // Draws a small colored icon on an offscreen canvas and returns it as a
+  // data URL — no external image files to host or go stale. "door" (the
+  // default) returns null, which just uses Panolens' own built-in look.
+  function makeInfospotIcon(type) {
+    var glyphs = { stairs: { color: "#5a9e6f", glyph: "≡" }, info: { color: "#4a90d9", glyph: "i" } };
+    var cfg = glyphs[type];
+    if (!cfg) return null;
+    var size = 128;
+    var canvas = document.createElement("canvas");
+    canvas.width = size; canvas.height = size;
+    var ctx = canvas.getContext("2d");
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    ctx.fillStyle = cfg.color;
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#0b0d10";
+    ctx.stroke();
+    ctx.fillStyle = "#0b0d10";
+    ctx.font = "bold " + Math.round(size * 0.5) + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(cfg.glyph, size / 2, size / 2 + 4);
+    return canvas.toDataURL("image/png");
+  }
+
+  function buildGallery() {
+    galleryEl.innerHTML = "";
+    sceneList.forEach(function (entry) {
+      var el = document.createElement("div");
+      el.className = "thumb" + (entry.id === currentId ? " active" : "");
+      el.style.backgroundImage = "url('" + resolveUrl(entry.file) + "')";
+      el.title = entry.title;
+      el.addEventListener("click", function () { switchTo(entry.id); });
+
+      var label = document.createElement("div");
+      label.className = "thumb-label";
+      label.textContent = entry.title;
+      el.appendChild(label);
+
+      galleryEl.appendChild(el);
+    });
+  }
+
+  // Known Panolens bug: hover-text tooltips are separate floating <div>
+  // elements it creates, and it doesn't reliably clean them up when the
+  // panorama switches — so whatever marker you were hovering right before
+  // navigating can just hang there on screen afterward. Explicitly telling
+  // every marker on the outgoing panorama to remove its own hover element
+  // right before switching is the documented fix.
+  //
+  // Deliberately does NOT call Infospot's own .hide() here. That method
+  // does much more than hide the hover div — it also disables raycasting
+  // (enableRaycast(false)) and sets material.opacity = 0, with no matching
+  // .show() ever called when the user later returns to this panorama. That
+  // silently and permanently disabled every panorama's markers the first
+  // time you navigated away from it — clicks landed on nothing, with
+  // nothing to raycast against, and no error to show for it. That was the
+  // real cause of "markers sometimes disappear."
+  function cleanupHoverElements() {
+    if (viewer.panorama && viewer.panorama.children) {
+      viewer.panorama.children.forEach(function (c) {
+        if (c.removeHoverElement) c.removeHoverElement();
+      });
+    }
+  }
+
+  function switchTo(id) {
+    if (id === currentId || !panoObjects[id]) return;
+    var entry = sceneList.filter(function (s) { return s.id === id; })[0];
+    if (!entry) return;
+    transitionSeq++;
+    autoRelevel.cancelPending();
+    idleDrift.cancelPending();
+    cleanupHoverElements();
+    currentId = id;
+    titleNameEl.textContent = entry.title;
+    viewer.setPanorama(panoObjects[id]);
+    buildGallery();
+  }
+
+  // Navigating via an in-scene hotspot (as opposed to the gallery rail) also
+  // tweens the initial view in the target panorama to face the direction
+  // this specific hotspot pointed — so arriving in the next room feels like
+  // a continuation of the direction you were already looking, rather than
+  // dumping you at that panorama's arbitrary default heading.
+  function navigateViaLink(link) {
+    if (link.targetId === currentId || !panoObjects[link.targetId]) return;
+    var entry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
+    if (!entry) return;
+    var target = panoObjects[link.targetId];
+
+    transitionSeq++;
+    var mySeq = transitionSeq;
+    autoRelevel.cancelPending();
+    idleDrift.cancelPending();
+
+    // Calling tweenControlCenter immediately after setPanorama() was the
+    // bug — Panolens hadn't actually finished making the new panorama
+    // "current" yet, so the tween had nothing to act on and silently did
+    // nothing (view just stayed wherever it was). Waiting for the
+    // panorama's own 'enter-fade-start' event fires the tween once
+    // Panolens is actually ready for it. The short fallback timer is
+    // insurance in case that event's timing ever differs.
+    //
+    // mySeq guards against a second bug: if the user navigates away again
+    // (another hotspot, or a gallery click) before either the event or the
+    // fallback timer fires, this closure is now stale — without the guard
+    // it would tween whatever panorama happens to be current by then.
+    // The listener is always explicitly removed (not just left for
+    // doHeadingTween's tweened-flag to short-circuit) so it can't sit on
+    // `target` forever and fire this stale closure the next time this same
+    // panorama is entered by some unrelated future navigation.
+    var tweened = false;
+    function doHeadingTween() {
+      if (tweened) return;
+      tweened = true;
+      target.removeEventListener("enter-fade-start", onEnter);
+      if (mySeq !== transitionSeq) return; // superseded by a later navigation
+      // Panolens defaults to TWEEN.Easing.Exponential.Out when no easing is
+      // given — a front-loaded curve where most of the rotation happens
+      // almost immediately, then sharply tapers off. That reads as fast and
+      // choppy for a "face the room you left" pan. Quadratic.Out is a much
+      // gentler ease-out, closer to what a deliberate camera pan should
+      // feel like.
+      var easing = window.TWEEN && window.TWEEN.Easing
+        ? window.TWEEN.Easing.Quadratic.Out
+        : undefined;
+      viewer.tweenControlCenter(new THREE.Vector3(link.x, link.y, link.z), 800, easing);
+    }
+    function onEnter() {
+      doHeadingTween();
+    }
+    target.addEventListener("enter-fade-start", onEnter);
+    setTimeout(doHeadingTween, 300);
+
+    cleanupHoverElements();
+    autoRelevel.suppressNext();
+    currentId = link.targetId;
+    titleNameEl.textContent = entry.title;
+    viewer.setPanorama(target);
+    buildGallery();
+  }
+
+  // ==========================================================================
+  // Boot — read ?tour=<id> from the URL and fetch that tour's own published
+  // file (published/<id>.json, written by admin.html's Section 7 prototype)
+  // rather than the single shared config.json. Each tour published this way
+  // has its own permanent URL and no others are affected by it.
+  // ==========================================================================
+
+  showLoading("LOADING…");
+
+  var urlParams = new URLSearchParams(window.location.search);
+  var requestedTourId = urlParams.get("tour");
+
+  if (!requestedTourId) {
+    hideLoading();
+    showError(
+      "<strong>No tour specified.</strong><br>" +
+      "This viewer needs a tour id in the URL, e.g. " +
+      "<code>?tour=my-tour</code>. Get the right link from admin.html's " +
+      "Section 7 (Publish to its own URL) for the tour you want to view."
+    );
+  } else {
+    fetch("published/" + encodeURIComponent(requestedTourId) + ".json", { cache: "no-store" })
+      .then(function (res) {
+        if (res.status === 404) throw new Error("NOT_PUBLISHED");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (config) {
+        var panoramas = (config && config.panoramas) || [];
+        if (panoramas.length === 0) {
+          throw new Error("This tour has no panoramas yet — add some via admin.html.");
+        }
+
+        sceneList = panoramas.map(function (p) {
+          return { id: p.id, title: p.title || p.id, file: p.file };
+        });
+
+        var firstId = sceneList[0].id;
+        showLoading("LOADING " + sceneList[0].title.toUpperCase());
+
+        var failSafe = setTimeout(function () {
+          hideLoading();
+          showError(
+            "<strong>Taking a while to load.</strong><br>" +
+            "Large panoramas can be slow the first time. If this never clears, " +
+            "open the browser console for the actual error."
+          );
+        }, 20000);
+
+        panoramas.forEach(function (p) {
+          var pano = new PANOLENS.ImagePanorama(resolveUrl(p.file));
+          panoObjects[p.id] = pano;
+          viewer.add(pano);
+
+          pano.addEventListener("load", function () {
+            if (p.id === firstId) {
+              clearTimeout(failSafe);
+              hideLoading();
+            }
+          });
+
+          pano.addEventListener("error", function () {
+            if (p.id === firstId) {
+              clearTimeout(failSafe);
+              hideLoading();
+            }
+            showError(
+              "<strong>\"" + (p.title || p.id) + "\" didn't load.</strong><br>" +
+              "Check that <code>" + p.file + "</code> exists in the repo with that " +
+              "exact filename and capitalization."
+            );
+          });
+        });
+
+        // Build hotspot markers by hand (rather than Panolens' .link() shorthand)
+        // so each one can carry the target room's name as hover text, and so
+        // clicking it can trigger the entry-heading tween above.
+        panoramas.forEach(function (p) {
+          var source = panoObjects[p.id];
+          (p.links || []).forEach(function (link) {
+            var target = panoObjects[link.targetId];
+            var targetEntry = sceneList.filter(function (s) { return s.id === link.targetId; })[0];
+            if (!source || !target || !targetEntry) return;
+
+            var icon = makeInfospotIcon(link.type);
+            var spot = icon ? new PANOLENS.Infospot(300, icon) : new PANOLENS.Infospot(300);
+            spot.position.set(link.x, link.y, link.z);
+            spot.addHoverText(targetEntry.title);
+            spot.addEventListener("click", function () { navigateViaLink(link); });
+            source.add(spot);
+          });
+        });
+
+        currentId = firstId;
+        titleNameEl.textContent = sceneList[0].title;
+        viewer.setPanorama(panoObjects[firstId]);
+        buildGallery();
+      })
+      .catch(function (err) {
+        hideLoading();
+        if (err && err.message === "NOT_PUBLISHED") {
+          showError(
+            "<strong>This tour isn't published.</strong><br>" +
+            "Either the link is wrong, or it's been unpublished since you got it."
+          );
+        } else {
+          showError(
+            "<strong>Couldn't load this tour.</strong><br>" +
+            (err && err.message ? err.message : "") + "<br>" +
+            "Make sure you're viewing this through its live GitHub Pages URL — " +
+            "opening the file locally won't work."
+          );
+        }
+      });
+  }
+
+  // ==========================================================================
+  // Heading / compass readout — driven by the actual camera, not decorative
+  // ==========================================================================
+
+  function updateCompass() {
+    if (viewer && viewer.camera) {
+      var dir = new THREE.Vector3();
+      viewer.camera.getWorldDirection(dir);
+      var deg = Math.round((Math.atan2(dir.x, dir.z) * 180 / Math.PI + 360) % 360);
+      headingDegEl.textContent = ("000" + deg).slice(-3) + "°";
+      needleEl.style.transform = "translate(-50%, -100%) rotate(" + deg + "deg)";
+    }
+    requestAnimationFrame(updateCompass);
+  }
+
+  updateCompass();
+
+})();
+</script>
+
+</body>
+</html>
