@@ -383,6 +383,114 @@
           ]
         }
       ]
+    },
+    {
+      "id": "campell-house",
+      "name": "Campell House",
+      "panoramas": [
+        {
+          "id": "img-20260728-113719-00-198-pureshot",
+          "title": "IMG 20260728 113719 00 198 PureShot",
+          "file": "panos/IMG_20260728_113719_00_198_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113619-00-197-pureshot",
+          "title": "IMG 20260728 113619 00 197 PureShot",
+          "file": "panos/IMG_20260728_113619_00_197_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113526-00-196-pureshot",
+          "title": "IMG 20260728 113526 00 196 PureShot",
+          "file": "panos/IMG_20260728_113526_00_196_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113413-00-195-pureshot",
+          "title": "IMG 20260728 113413 00 195 PureShot",
+          "file": "panos/IMG_20260728_113413_00_195_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113252-00-194-pureshot",
+          "title": "IMG 20260728 113252 00 194 PureShot",
+          "file": "panos/IMG_20260728_113252_00_194_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113158-00-193-pureshot",
+          "title": "IMG 20260728 113158 00 193 PureShot",
+          "file": "panos/IMG_20260728_113158_00_193_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113046-00-192-pureshot",
+          "title": "IMG 20260728 113046 00 192 PureShot",
+          "file": "panos/IMG_20260728_113046_00_192_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-113002-00-191-pureshot",
+          "title": "IMG 20260728 113002 00 191 PureShot",
+          "file": "panos/IMG_20260728_113002_00_191_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-112900-00-190-pureshot",
+          "title": "IMG 20260728 112900 00 190 PureShot",
+          "file": "panos/IMG_20260728_112900_00_190_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-112818-00-189-pureshot",
+          "title": "IMG 20260728 112818 00 189 PureShot",
+          "file": "panos/IMG_20260728_112818_00_189_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-112734-00-188-pureshot",
+          "title": "IMG 20260728 112734 00 188 PureShot",
+          "file": "panos/IMG_20260728_112734_00_188_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-104558-00-187-pureshot",
+          "title": "IMG 20260728 104558 00 187 PureShot",
+          "file": "panos/IMG_20260728_104558_00_187_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-104534-00-186-pureshot",
+          "title": "IMG 20260728 104534 00 186 PureShot",
+          "file": "panos/IMG_20260728_104534_00_186_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-103746-00-185-pureshot",
+          "title": "IMG 20260728 103746 00 185 PureShot",
+          "file": "panos/IMG_20260728_103746_00_185_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-103017-00-184-pureshot",
+          "title": "IMG 20260728 103017 00 184 PureShot",
+          "file": "panos/IMG_20260728_103017_00_184_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-102738-00-183-pureshot",
+          "title": "IMG 20260728 102738 00 183 PureShot",
+          "file": "panos/IMG_20260728_102738_00_183_PureShot.jpg",
+          "links": []
+        },
+        {
+          "id": "img-20260728-102156-00-182-pureshot",
+          "title": "IMG 20260728 102156 00 182 PureShot",
+          "file": "panos/IMG_20260728_102156_00_182_PureShot.jpg",
+          "links": []
+        }
+      ]
     }
   ]
 }
