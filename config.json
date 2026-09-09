@@ -1,382 +1,106 @@
 {
   "panoramas": [
     {
-      "id": "living3-gibsonhouse",
-      "title": "Living3 Gibsonhouse",
-      "file": "panos/Living3_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "foyer-gibsonhouse",
-          "type": "door",
-          "x": -4103.040121237212,
-          "y": 469.6525011004501,
-          "z": -2804.6339919640272
-        },
-        {
-          "targetId": "living1-gibsonhouse",
-          "type": "door",
-          "x": 295.2372418095862,
-          "y": -1727.0043450083742,
-          "z": 4672.696351684306
-        },
-        {
-          "targetId": "kitchen-gibsonhouse",
-          "type": "door",
-          "x": -81.4751482286653,
-          "y": 98.119967839215,
-          "z": 4991.87492977785
-        }
-      ]
+      "id": "img-20260728-102156-00-182-pureshot",
+      "title": "IMG 20260728 102156 00 182 PureShot",
+      "file": "panos/IMG_20260728_102156_00_182_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "foyer-gibsonhouse",
-      "title": "Foyer Gibsonhouse",
-      "file": "panos/Foyer_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "dining-gibsonhouse",
-          "type": "door",
-          "x": 499.7024509487056,
-          "y": 521.5339972228961,
-          "z": -4943.1020164916
-        },
-        {
-          "targetId": "office-gibsonhouse",
-          "type": "door",
-          "x": 4930.814382808128,
-          "y": 793.578847766892,
-          "z": -102.24668747487092
-        },
-        {
-          "targetId": "landing-gibsonhouse",
-          "type": "stairs",
-          "x": -1667.914395444248,
-          "y": 1800.8120925560747,
-          "z": -4345.44793453099
-        },
-        {
-          "targetId": "living3-gibsonhouse",
-          "type": "door",
-          "x": -4982.746917501066,
-          "y": 72.128912833907,
-          "z": 275.13151971422235
-        }
-      ]
+      "id": "img-20260728-102738-00-183-pureshot",
+      "title": "IMG 20260728 102738 00 183 PureShot",
+      "file": "panos/IMG_20260728_102738_00_183_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "landing-gibsonhouse",
-      "title": "Landing Gibsonhouse",
-      "file": "panos/Landing_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "hallway-gibsonhouse",
-          "type": "door",
-          "x": -3645.640268675863,
-          "y": 299.63823323154764,
-          "z": -3399.1105021230956
-        },
-        {
-          "targetId": "foyer-gibsonhouse",
-          "type": "stairs",
-          "x": -2535.95757406715,
-          "y": -1751.0866938407476,
-          "z": -3924.89050982394
-        },
-        {
-          "targetId": "bedroom1-gibsonhouse",
-          "type": "door",
-          "x": 2995.5979514425426,
-          "y": -54.441357090015345,
-          "z": -3996.4445065848795
-        },
-        {
-          "targetId": "bedroom2-gibsonhouse",
-          "type": "door",
-          "x": -3611.187303829259,
-          "y": 610.72839998309,
-          "z": 3391.910018024569
-        }
-      ]
+      "id": "img-20260728-103017-00-184-pureshot",
+      "title": "IMG 20260728 103017 00 184 PureShot",
+      "file": "panos/IMG_20260728_103017_00_184_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "hallway-gibsonhouse",
-      "title": "Hallway Gibsonhouse",
-      "file": "panos/Hallway_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "servantlanding-gibsonhouse",
-          "type": "door",
-          "x": -4129.134377079129,
-          "y": 590.3944172731079,
-          "z": -2738.24945141695
-        },
-        {
-          "targetId": "bedroom1-gibsonhouse",
-          "type": "door",
-          "x": -4829.6280972011655,
-          "y": 366.5025815888288,
-          "z": -1212.0630796838102
-        },
-        {
-          "targetId": "landing-gibsonhouse",
-          "type": "door",
-          "x": -4254.916904171467,
-          "y": -1168.6449372364948,
-          "z": -2342.8431399497813
-        },
-        {
-          "targetId": "bedroom5-gibsonhouse",
-          "type": "door",
-          "x": -2361.122426274141,
-          "y": 405.6459008667014,
-          "z": 4381.842649027774
-        },
-        {
-          "targetId": "bedroom4-gibsonhouse",
-          "type": "door",
-          "x": 4397.999853526036,
-          "y": -13.08163618558424,
-          "z": 2365.6612689541603
-        },
-        {
-          "targetId": "bedroom3-gibsonhouse",
-          "type": "door",
-          "x": 3585.3466865848814,
-          "y": 42.08544182015284,
-          "z": -3473.6952596141714
-        }
-      ]
+      "id": "img-20260728-103746-00-185-pureshot",
+      "title": "IMG 20260728 103746 00 185 PureShot",
+      "file": "panos/IMG_20260728_103746_00_185_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "bedroom1-gibsonhouse",
-      "title": "Bedroom1 Gibsonhouse",
-      "file": "panos/Bedroom1_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "landing-gibsonhouse",
-          "type": "door",
-          "x": -4484.1540688968125,
-          "y": -2161.860445381897,
-          "z": 395.1625506340102
-        },
-        {
-          "targetId": "bedroom2-gibsonhouse",
-          "type": "door",
-          "x": -4963.904180458984,
-          "y": 397.06151197417506,
-          "z": 383.88317157834916
-        },
-        {
-          "targetId": "servantlanding-gibsonhouse",
-          "type": "door",
-          "x": -4436.258368734825,
-          "y": 37.277956763654615,
-          "z": 2288.4835033254385
-        }
-      ]
+      "id": "img-20260728-104534-00-186-pureshot",
+      "title": "IMG 20260728 104534 00 186 PureShot",
+      "file": "panos/IMG_20260728_104534_00_186_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "bedroom2-gibsonhouse",
-      "title": "Bedroom2 Gibsonhouse",
-      "file": "panos/Bedroom2_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "landing-gibsonhouse",
-          "type": "door",
-          "x": -4686.6845993206225,
-          "y": -1446.1863953276147,
-          "z": -943.7553035956316
-        },
-        {
-          "targetId": "bedroom1-gibsonhouse",
-          "type": "door",
-          "x": -4922.68444971469,
-          "y": 365.00570161954516,
-          "z": -746.3081709749792
-        }
-      ]
+      "id": "img-20260728-104558-00-187-pureshot",
+      "title": "IMG 20260728 104558 00 187 PureShot",
+      "file": "panos/IMG_20260728_104558_00_187_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "bedroom3-gibsonhouse",
-      "title": "Bedroom3 Gibsonhouse",
-      "file": "panos/Bedroom3_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "hallway-gibsonhouse",
-          "type": "door",
-          "x": 4372.791471241544,
-          "y": -347.2459941771643,
-          "z": 2386.255520533649
-        }
-      ]
+      "id": "img-20260728-112734-00-188-pureshot",
+      "title": "IMG 20260728 112734 00 188 PureShot",
+      "file": "panos/IMG_20260728_112734_00_188_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "bedroom4-gibsonhouse",
-      "title": "Bedroom4 Gibsonhouse",
-      "file": "panos/Bedroom4_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "hallway-gibsonhouse",
-          "type": "door",
-          "x": -3560.924949347695,
-          "y": -2820.800098257266,
-          "z": 2078.293128804364
-        },
-        {
-          "targetId": "landing-gibsonhouse",
-          "type": "door",
-          "x": -4595.092282629128,
-          "y": -935.1511364009659,
-          "z": 1706.0618485107389
-        },
-        {
-          "targetId": "foyer-gibsonhouse",
-          "type": "stairs",
-          "x": -3637.7905034438036,
-          "y": -1512.682381423113,
-          "z": 3068.067244476581
-        },
-        {
-          "targetId": "bedroom1-gibsonhouse",
-          "type": "door",
-          "x": -4254.961336874777,
-          "y": 387.5016070322799,
-          "z": 2587.8290651740635
-        },
-        {
-          "targetId": "servantlanding-gibsonhouse",
-          "type": "door",
-          "x": -4726.071221100352,
-          "y": 524.2377120717567,
-          "z": 1534.3778538000952
-        }
-      ]
+      "id": "img-20260728-112818-00-189-pureshot",
+      "title": "IMG 20260728 112818 00 189 PureShot",
+      "file": "panos/IMG_20260728_112818_00_189_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "bedroom5-gibsonhouse",
-      "title": "Bedroom5 Gibsonhouse",
-      "file": "panos/Bedroom5_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "hallway-gibsonhouse",
-          "type": "door",
-          "x": -2520.6739396857233,
-          "y": 536.7251149513787,
-          "z": -4277.993347428485
-        }
-      ]
+      "id": "img-20260728-112900-00-190-pureshot",
+      "title": "IMG 20260728 112900 00 190 PureShot",
+      "file": "panos/IMG_20260728_112900_00_190_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "servantlanding-gibsonhouse",
-      "title": "Servantlanding Gibsonhouse",
-      "file": "panos/Servantlanding_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "dining-gibsonhouse",
-          "type": "stairs",
-          "x": -2955.863599412566,
-          "y": -4003.2260588143668,
-          "z": 437.5727374422483
-        },
-        {
-          "targetId": "hallway-gibsonhouse",
-          "type": "door",
-          "x": 2191.6433698360092,
-          "y": -1363.9000402022925,
-          "z": 4270.237699681908
-        }
-      ]
+      "id": "img-20260728-113002-00-191-pureshot",
+      "title": "IMG 20260728 113002 00 191 PureShot",
+      "file": "panos/IMG_20260728_113002_00_191_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "office-gibsonhouse",
-      "title": "Office Gibsonhouse",
-      "file": "panos/Office_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "living3-gibsonhouse",
-          "type": "door",
-          "x": -416.9493535966969,
-          "y": -261.4687090289443,
-          "z": -4967.875583472951
-        },
-        {
-          "targetId": "foyer-gibsonhouse",
-          "type": "door",
-          "x": -2177.9112614502747,
-          "y": -84.01981900735593,
-          "z": -4490.539389387954
-        }
-      ]
+      "id": "img-20260728-113046-00-192-pureshot",
+      "title": "IMG 20260728 113046 00 192 PureShot",
+      "file": "panos/IMG_20260728_113046_00_192_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "kitchen-gibsonhouse",
-      "title": "kitchen Gibsonhouse",
-      "file": "panos/kitchen_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "living1-gibsonhouse",
-          "type": "door",
-          "x": -4135.442958971548,
-          "y": 551.3931675132067,
-          "z": -2736.9989917940734
-        },
-        {
-          "targetId": "dining-gibsonhouse",
-          "type": "door",
-          "x": -4591.06983326386,
-          "y": 258.232232737038,
-          "z": 1944.6007296158682
-        }
-      ]
+      "id": "img-20260728-113158-00-193-pureshot",
+      "title": "IMG 20260728 113158 00 193 PureShot",
+      "file": "panos/IMG_20260728_113158_00_193_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "dining-gibsonhouse",
-      "title": "Dining Gibsonhouse",
-      "file": "panos/Dining_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "kitchen-gibsonhouse",
-          "type": "door",
-          "x": 3739.4657284823647,
-          "y": -201.92014665117475,
-          "z": -3303.7455291151155
-        },
-        {
-          "targetId": "foyer-gibsonhouse",
-          "type": "door",
-          "x": -4097.209722052168,
-          "y": 43.4443615036243,
-          "z": -2855.5313667518303
-        }
-      ]
+      "id": "img-20260728-113252-00-194-pureshot",
+      "title": "IMG 20260728 113252 00 194 PureShot",
+      "file": "panos/IMG_20260728_113252_00_194_PureShot.jpg",
+      "links": []
     },
     {
-      "id": "living1-gibsonhouse",
-      "title": "Living1 Gibsonhouse",
-      "file": "panos/Living1_Gibsonhouse.jpg",
-      "links": [
-        {
-          "targetId": "living3-gibsonhouse",
-          "type": "door",
-          "x": -477.74672899877186,
-          "y": -1526.3279325964863,
-          "z": -4735.534751992734
-        },
-        {
-          "targetId": "kitchen-gibsonhouse",
-          "type": "door",
-          "x": -793.4933513619812,
-          "y": 132.5384085992185,
-          "z": 4924.445713106868
-        },
-        {
-          "targetId": "servantlanding-gibsonhouse",
-          "type": "stairs",
-          "x": -1554.682182704648,
-          "y": 733.2538139243276,
-          "z": 4691.944474878525
-        }
-      ]
+      "id": "img-20260728-113413-00-195-pureshot",
+      "title": "IMG 20260728 113413 00 195 PureShot",
+      "file": "panos/IMG_20260728_113413_00_195_PureShot.jpg",
+      "links": []
+    },
+    {
+      "id": "img-20260728-113526-00-196-pureshot",
+      "title": "IMG 20260728 113526 00 196 PureShot",
+      "file": "panos/IMG_20260728_113526_00_196_PureShot.jpg",
+      "links": []
+    },
+    {
+      "id": "img-20260728-113619-00-197-pureshot",
+      "title": "IMG 20260728 113619 00 197 PureShot",
+      "file": "panos/IMG_20260728_113619_00_197_PureShot.jpg",
+      "links": []
+    },
+    {
+      "id": "img-20260728-113719-00-198-pureshot",
+      "title": "IMG 20260728 113719 00 198 PureShot",
+      "file": "panos/IMG_20260728_113719_00_198_PureShot.jpg",
+      "links": []
     }
   ]
 }
