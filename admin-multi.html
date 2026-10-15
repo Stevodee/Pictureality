@@ -578,6 +578,38 @@
     return "https://raw.githubusercontent.com/" + OWNER + "/" + REPO + "/main/" + path;
   }
 
+  // ImageKit thumb tier (960x480). Set this to your ImageKit URL endpoint,
+  // e.g. "https://ik.imagekit.io/yourid" (no trailing slash). Leave empty to
+  // keep using the full-res repo files for previews.
+  // Layout in ImageKit: /panos/960x480/<slug>.jpg, where <slug> is the repo
+  // file name without extension and without any "-8k" suffix.
+  var IMAGEKIT_BASE = "";
+
+  function thumbUrl(path) {
+    if (!IMAGEKIT_BASE) return rawUrl(path);
+    var stem = path.split("/").pop().replace(/\.[^.]+$/, "").replace(/-8k$/i, "");
+    return IMAGEKIT_BASE + "/panos/960x480/" + stem + ".jpg";
+  }
+
+  // Preview image: thumb tier first, falls back to the full-res repo file if
+  // the thumb isn't on ImageKit yet.
+  function setThumb(img, path) {
+    img.loading = "lazy";
+    img.onerror = function () {
+      img.onerror = null;
+      img.src = rawUrl(path);
+    };
+    img.src = thumbUrl(path);
+  }
+
+  // Blurred page background: same thumb-first logic via a probe image.
+  function setBackgroundFromFile(path) {
+    var probe = new Image();
+    probe.onload = function () { setBackgroundPano(probe.src); };
+    probe.onerror = function () { setBackgroundPano(rawUrl(path)); };
+    probe.src = thumbUrl(path);
+  }
+
   // Kept identical to the copy in index.html so markers preview here exactly
   // as they'll look live. "door" (the default) returns null, meaning use
   // Panolens' own built-in look.
@@ -728,7 +760,7 @@
       row.className = "tour-row" + (currentTour && currentTour.id === t.id ? " selected" : "");
 
       var img = document.createElement("img");
-      if (t.panoramas && t.panoramas[0]) img.src = rawUrl(t.panoramas[0].file);
+      if (t.panoramas && t.panoramas[0]) setThumb(img, t.panoramas[0].file);
       row.appendChild(img);
 
       var info = document.createElement("div");
@@ -781,7 +813,7 @@
     renderPanoramaTable();
 
     if (currentTour.panoramas && currentTour.panoramas[0]) {
-      setBackgroundPano(rawUrl(currentTour.panoramas[0].file));
+      setBackgroundFromFile(currentTour.panoramas[0].file);
     }
   }
 
@@ -903,7 +935,7 @@
       card.className = "file-card";
 
       var img = document.createElement("img");
-      img.src = rawUrl(f.path);
+      setThumb(img, f.path);
       card.appendChild(img);
 
       var fname = document.createElement("div");
@@ -946,7 +978,7 @@
     renderFileGrid();
     renderPanoramaTable();
     renderTourList();
-    if (currentTour.panoramas.length === 1) setBackgroundPano(rawUrl(f.path));
+    if (currentTour.panoramas.length === 1) setBackgroundFromFile(f.path);
   }
 
   // ==========================================================================
@@ -1025,7 +1057,7 @@
 
       var tdImg = document.createElement("td");
       var img = document.createElement("img");
-      img.src = rawUrl(p.file);
+      setThumb(img, p.file);
       tdImg.appendChild(img);
       tr.appendChild(tdImg);
 
@@ -1100,7 +1132,7 @@
     var p = currentTour.panoramas.filter(function (x) { return x.id === id; })[0];
     if (!p) return;
 
-    setBackgroundPano(rawUrl(p.file));
+    setBackgroundFromFile(p.file);
 
     hotspotPanelTitle.textContent = p.title;
     hotspotPanel.classList.add("active");
