@@ -642,6 +642,36 @@
     return new URL(file, window.location.href).toString();
   }
 
+  // ImageKit thumb tier (960x480) for the gallery rail only. The main
+  // panoramas still load from the repo. Set this to your ImageKit URL
+  // endpoint, e.g. "https://ik.imagekit.io/yourid" (no trailing slash).
+  // Leave empty to keep using the repo files for the rail.
+  // Layout in ImageKit: /panos/960x480/<slug>.jpg, where <slug> is the repo
+  // file name without extension and without any "-8k" suffix.
+  var IMAGEKIT_BASE = "";
+  var thumbCache = {};   // file -> URL that actually loaded
+
+  function thumbUrl(file) {
+    if (!IMAGEKIT_BASE) return resolveUrl(file);
+    var stem = file.split("/").pop().replace(/\.[^.]+$/, "").replace(/-8k$/i, "");
+    return IMAGEKIT_BASE + "/panos/960x480/" + stem + ".jpg";
+  }
+
+  // Sets a rail thumbnail: ImageKit thumb first, falls back to the repo file
+  // if the thumb isn't on ImageKit yet. Remembers the result so the rail
+  // (rebuilt on every navigation) doesn't re-probe.
+  function setThumbBg(el, file) {
+    function apply(url) { el.style.backgroundImage = "url('" + url + "')"; }
+    if (thumbCache[file]) { apply(thumbCache[file]); return; }
+    var wanted = thumbUrl(file);
+    var full = resolveUrl(file);
+    if (wanted === full) { thumbCache[file] = full; apply(full); return; }
+    var probe = new Image();
+    probe.onload = function () { thumbCache[file] = wanted; apply(wanted); };
+    probe.onerror = function () { thumbCache[file] = full; apply(full); };
+    probe.src = wanted;
+  }
+
   // Draws a small colored icon on an offscreen canvas and returns it as a
   // data URL — no external image files to host or go stale. "door" (the
   // default) returns null, which just uses Panolens' own built-in look.
@@ -673,7 +703,7 @@
     sceneList.forEach(function (entry) {
       var el = document.createElement("div");
       el.className = "thumb" + (entry.id === currentId ? " active" : "");
-      el.style.backgroundImage = "url('" + resolveUrl(entry.file) + "')";
+      setThumbBg(el, entry.file);
       el.title = entry.title;
       el.addEventListener("click", function () { switchTo(entry.id); });
 
