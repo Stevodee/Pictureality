@@ -830,6 +830,11 @@
           ]
         }
       ]
+    },
+    {
+      "id": "dongmyo-shrine",
+      "name": "Dongmyo Shrine",
+      "panoramas": []
     }
   ]
 }
