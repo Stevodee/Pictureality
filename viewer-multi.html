@@ -651,10 +651,33 @@
   var IMAGEKIT_BASE = "https://ik.imagekit.io/jydzbhzdv";
   var thumbCache = {};   // file -> URL that actually loaded
 
+  function slugOf(file) {
+    return file.split("/").pop().replace(/\.[^.]+$/, "").replace(/-8k$/i, "");
+  }
+
+  function tierUrl(file, tier) {
+    return IMAGEKIT_BASE + "/panos/" + tier + "/" + slugOf(file) + ".jpg";
+  }
+
   function thumbUrl(file) {
     if (!IMAGEKIT_BASE) return resolveUrl(file);
-    var stem = file.split("/").pop().replace(/\.[^.]+$/, "").replace(/-8k$/i, "");
-    return IMAGEKIT_BASE + "/panos/960x480/" + stem + ".jpg";
+    return tierUrl(file, "960x480");
+  }
+
+  // Phones and tablets get the 4096x2048 tier (iOS Safari can fail to load
+  // 8192x4096 textures). iPadOS reports itself as a Mac, hence the touch check.
+  function isMobileDevice() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
+  }
+
+  // HEAD request so we only switch to the 4k tier when it really exists on
+  // ImageKit. Any failure counts as "not there" and the repo 8k is used.
+  function urlExists(url) {
+    return fetch(url, { method: "HEAD" }).then(
+      function (r) { return r.ok; },
+      function () { return false; }
+    );
   }
 
   // Sets a rail thumbnail: ImageKit thumb first, falls back to the repo file
@@ -844,6 +867,14 @@
         return res.json();
       })
       .then(function (config) {
+        var list = (config && config.panoramas) || [];
+        if (!IMAGEKIT_BASE || !isMobileDevice() || list.length === 0) return config;
+        return Promise.all(list.map(function (p) {
+          var url = tierUrl(p.file, "4096x2048");
+          return urlExists(url).then(function (ok) { if (ok) p._src = url; });
+        })).then(function () { return config; });
+      })
+      .then(function (config) {
         var panoramas = (config && config.panoramas) || [];
         if (panoramas.length === 0) {
           throw new Error("This tour has no panoramas yet — add some via admin.html.");
@@ -866,7 +897,7 @@
         }, 20000);
 
         panoramas.forEach(function (p) {
-          var pano = new PANOLENS.ImagePanorama(resolveUrl(p.file));
+          var pano = new PANOLENS.ImagePanorama(p._src || resolveUrl(p.file));
           panoObjects[p.id] = pano;
           viewer.add(pano);
 
