@@ -638,6 +638,13 @@
     errorEl.classList.remove("show");
   }
 
+  // On-screen report of uncaught script errors, for devices with no dev
+  // tools (old iPads). Shows the message and where it happened.
+  window.addEventListener("error", function (e) {
+    var where = e.filename ? " (" + e.filename.split("/").pop() + ":" + e.lineno + ")" : "";
+    showError("<strong>Script error.</strong><br>" + (e.message || "unknown error") + where);
+  });
+
   function resolveUrl(file) {
     return new URL(file, window.location.href).toString();
   }
