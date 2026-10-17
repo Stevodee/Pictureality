@@ -671,6 +671,45 @@
            (navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform));
   }
 
+  // Largest texture the GPU will accept. Throwaway context, released at once.
+  // Falls back to a conservative 4096 if WebGL can't be queried.
+  function maxTextureSize() {
+    try {
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      if (!gl) return 4096;
+      var n = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+      var lose = gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+      return n;
+    } catch (e) { return 4096; }
+  }
+
+  // Which ImageKit tiers to try, in order. An empty list means "use the repo 8k".
+  // Override for testing with ?res=8k, ?res=4k or ?res=2k on the viewer URL.
+  function tierOrder() {
+    var q = (new URLSearchParams(window.location.search).get("res") || "").toLowerCase();
+    if (q === "8k") return [];
+    if (q === "4k") return ["4096x2048"];
+    if (q === "2k") return ["2048x1024", "4096x2048"];
+    if (!isMobileDevice()) return [];
+    return maxTextureSize() <= 4096 ? ["2048x1024", "4096x2048"] : ["4096x2048"];
+  }
+
+  // Walks the tier list for one pano and keeps the first that exists.
+  function pickSrc(p, order) {
+    var i = 0;
+    function next() {
+      if (i >= order.length) return Promise.resolve();
+      var url = tierUrl(p.file, order[i++]);
+      return urlExists(url).then(function (ok) {
+        if (ok) { p._src = url; return; }
+        return next();
+      });
+    }
+    return next();
+  }
+
   // HEAD request so we only switch to the 4k tier when it really exists on
   // ImageKit. Any failure counts as "not there" and the repo 8k is used.
   function urlExists(url) {
@@ -868,11 +907,11 @@
       })
       .then(function (config) {
         var list = (config && config.panoramas) || [];
-        if (!IMAGEKIT_BASE || !isMobileDevice() || list.length === 0) return config;
-        return Promise.all(list.map(function (p) {
-          var url = tierUrl(p.file, "4096x2048");
-          return urlExists(url).then(function (ok) { if (ok) p._src = url; });
-        })).then(function () { return config; });
+        var order = tierOrder();
+        console.log("[tiers] order:", order.length ? order.join(" > ") : "repo 8k");
+        if (!IMAGEKIT_BASE || order.length === 0 || list.length === 0) return config;
+        return Promise.all(list.map(function (p) { return pickSrc(p, order); }))
+          .then(function () { return config; });
       })
       .then(function (config) {
         var panoramas = (config && config.panoramas) || [];
