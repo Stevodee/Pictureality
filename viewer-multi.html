@@ -645,6 +645,30 @@
     showError("<strong>Script error.</strong><br>" + (e.message || "unknown error") + where);
   });
 
+  // Returns an error message if this browser can't run the viewer, else "".
+  // Old devices get a plain explanation instead of a blank screen.
+  function unsupportedReason() {
+    var missing = [];
+    if (!window.fetch) missing.push("fetch");
+    if (!window.Promise) missing.push("Promise");
+    if (!window.URLSearchParams) missing.push("URLSearchParams");
+    var webgl = false;
+    try {
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      webgl = !!gl;
+      if (gl) {
+        var lose = gl.getExtension("WEBGL_lose_context");
+        if (lose) lose.loseContext();
+      }
+    } catch (e) {}
+    if (!webgl) missing.push("WebGL");
+    if (!missing.length) return "";
+    return "<strong>This device can't show this tour.</strong><br>" +
+           "Its browser is missing a feature the viewer needs (" + missing.join(", ") + "). " +
+           "Try a newer device or browser.";
+  }
+
   function resolveUrl(file) {
     return new URL(file, window.location.href).toString();
   }
@@ -894,10 +918,14 @@
 
   showLoading("LOADING…");
 
-  var urlParams = new URLSearchParams(window.location.search);
-  var requestedTourId = urlParams.get("tour");
+  var unsupported = unsupportedReason();
+  var urlParams = unsupported ? null : new URLSearchParams(window.location.search);
+  var requestedTourId = urlParams ? urlParams.get("tour") : null;
 
-  if (!requestedTourId) {
+  if (unsupported) {
+    hideLoading();
+    showError(unsupported);
+  } else if (!requestedTourId) {
     hideLoading();
     showError(
       "<strong>No tour specified.</strong><br>" +
@@ -961,8 +989,9 @@
             }
             showError(
               "<strong>\"" + (p.title || p.id) + "\" didn't load.</strong><br>" +
-              "Check that <code>" + p.file + "</code> exists in the repo with that " +
-              "exact filename and capitalization."
+              "The image may be missing, or this device may not have enough memory " +
+              "to display it. Try reloading, or a newer device or browser.<br>" +
+              "<small>File: <code>" + p.file + "</code></small>"
             );
           });
         });
