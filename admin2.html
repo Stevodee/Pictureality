@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pictureality admin (PSV)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.css">
+<style>
+  :root { --bg:#0b0d10; --panel:#14171c; --line:#262b33; --text:#e8e6df; --dim:#8b9099; --accent:#d98a3d; --bad:#e0705a; --good:#5a9e6f; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font:13px/1.45 -apple-system,BlinkMacSystemFont,sans-serif; }
+  #app { display:grid; grid-template-columns:230px 1fr 350px; grid-template-rows:auto 1fr; height:100%; }
+  header { grid-column:1/4; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  input, select { background:#1a1e25; border:1px solid var(--line); color:var(--text); padding:5px 7px; border-radius:4px; font:12px ui-monospace,monospace; }
+  button { background:var(--accent); color:#1a1206; border:0; border-radius:4px; padding:6px 11px; font-weight:600; cursor:pointer; }
+  button.sec { background:transparent; color:var(--text); border:1px solid var(--line); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  #list { overflow:auto; background:var(--panel); border-right:1px solid var(--line); }
+  #list div { padding:6px 10px; border-bottom:1px solid var(--line); cursor:pointer; font:12px ui-monospace,monospace; display:flex; justify-content:space-between; gap:6px; }
+  #list div.on { background:#222831; }
+  #list .nb { color:var(--bad); } #list .b { color:var(--dim); }
+  #viewerwrap { position:relative; min-height:0; }
+  #viewer { position:absolute; inset:0; }
+  #msg { position:absolute; top:10px; left:10px; z-index:5; background:rgba(0,0,0,.72); padding:6px 10px; border-radius:6px; font:12px ui-monospace,monospace; pointer-events:none; }
+  #side { overflow:auto; background:var(--panel); border-left:1px solid var(--line); padding:10px 12px; }
+  h3 { font:600 11px ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin:14px 0 6px; }
+  h3.error { color:var(--bad); } h3.warn { color:var(--accent); }
+  label { display:block; font-size:11px; color:var(--dim); margin:6px 0 2px; }
+  .f { padding:4px 0; border-bottom:1px solid var(--line); font:11px ui-monospace,monospace; cursor:pointer; }
+  .ok { color:var(--good); } .dim { color:var(--dim); }
+  .row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <header>
+    <b>Pictureality admin</b>
+    tour <input id="tour" size="16" placeholder="campell-house">
+    <button id="load">Load</button>
+    <span class="dim">|</span>
+    repo <input id="owner" size="9" value="Stevodee"> / <input id="repo" size="10" value="Pictureality">
+    token <input id="token" type="password" size="14" placeholder="only needed to save">
+    <button id="save" disabled>Save</button>
+    <span id="status" class="dim"></span>
+  </header>
+  <div id="list"></div>
+  <div id="viewerwrap"><div id="viewer"></div><div id="msg">load a tour</div></div>
+  <div id="side">
+    <h3>Orient</h3>
+    <div id="cur" class="dim">no pano open</div>
+    <label>Clicked spot: bearing (0–360°)</label>
+    <input id="bearing" type="number" step="0.1" min="0" max="360" style="width:100px">
+    <span class="row" style="display:inline-flex;margin:0 0 0 6px"><button class="sec" data-b="0">N</button><button class="sec" data-b="90">E</button><button class="sec" data-b="180">S</button><button class="sec" data-b="270">W</button></span>
+    <label>Reference</label>
+    <select id="ref"><option value="true">true north (map)</option><option value="magnetic">magnetic (compass)</option></select>
+    <select id="src"><option value="manual-landmark">map / landmark</option><option value="manual-compass">compass on site</option></select>
+    <div class="row"><button id="apply">Apply</button><button class="sec" id="prev">&#9664; Prev</button><button class="sec" id="next">Next &#9654;</button></div>
+    <div id="picked" class="dim" style="margin-top:6px">click the panorama to pick a spot</div>
+    <h3>Validate</h3>
+    <label>Start scene (reachability)</label>
+    <input id="start" style="width:100%" placeholder="blank = first in tour">
+    <div id="findings"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { Viewer } from '@photo-sphere-viewer/core';
+
+  const $ = id => document.getElementById(id);
+  const J = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
+  const wrap = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const norm = d => ((d % 360) + 360) % 360;
+  const deg = r => r * 180 / Math.PI;
+
+  let TOKEN = '';          // session only: never written to disk, storage or cookies
+  let S = {}, ids = [], tour = '', cur = null, picked = null, viewer = null;
+  const dirty = new Set();
+
+  const status = (m, bad) => { $('status').textContent = m; $('status').style.color = bad ? 'var(--bad)' : 'var(--dim)'; };
+
+  // ---------- load ----------
+  async function loadTour(t) {
+    status('loading…');
+    try {
+      ids = (await J(`tours/${t}.json`)).scenes; tour = t; S = {}; dirty.clear();
+      for (const id of ids) {
+        let sc = null, desc = null;
+        try { sc = await J(`scenes/${id}.json`); desc = await J(sc.media[0].descriptor); } catch (e) {}
+        S[id] = { sc, desc, path: sc && sc.media[0].descriptor };
+      }
+    } catch (e) { status('cannot load tour: ' + e.message, true); return; }
+    status(`${ids.length} scenes loaded`);
+    $('save').disabled = true;
+    open(ids[0]);
+  }
+
+  // ---------- validate (same rules as validate.html) ----------
+  function validate() {
+    const F = { error: [], warn: [], info: [] };
+    const add = (l, m, s) => F[l].push({ m, s });
+    const bc = {}, ref = {}, links = {};
+    for (const id of ids) {
+      const { sc, desc } = S[id];
+      if (!sc) { add('error', `scene file missing: ${id}`, id); links[id] = []; continue; }
+      links[id] = [];
+      for (const o of sc.objects || []) for (const a of o.actions || [])
+        if (a.type === 'goto') links[id].push({ to: a.scene, yaw: o.location.yaw, v: o.variant });
+      const or = desc && desc.orientation;
+      if (!desc) add('error', `descriptor missing: ${id}`, id);
+      else if (!or || or.bearingOfCenter == null) add('error', `no bearing: ${id}`, id);
+      else { bc[id] = or.bearingOfCenter; ref[id] = or.reference; }
+    }
+    for (const a of ids) for (const l of links[a]) if (!ids.includes(l.to)) add('error', `${a} → ${l.to}: target not in this tour`, a);
+    const refs = [...new Set(Object.values(ref))];
+    if (refs.length > 1) add('error', `mixed bearing references: ${refs.join(', ')}`);
+    const reach = s => { const seen = new Set([s]), st = [s];
+      while (st.length) for (const l of links[st.pop()] || []) if (ids.includes(l.to) && !seen.has(l.to)) { seen.add(l.to); st.push(l.to); }
+      return seen; };
+    const start = $('start').value.trim() || ids[0];
+    if (!ids.includes(start)) add('error', `start scene not in tour: ${start}`);
+    else { const r = reach(start);
+      for (const id of ids) { if (!r.has(id)) add('error', `unreachable from start: ${id}`, id);
+        else if (!reach(id).has(start)) add('error', `dead end (no way back): ${id}`, id); } }
+    const first = {}; let oneWay = 0, checked = 0;
+    for (const a of ids) for (const l of links[a]) if (!first[a + '|' + l.to]) first[a + '|' + l.to] = l;
+    for (const k in first) { const [a, b] = k.split('|'); if (ids.includes(b) && !first[b + '|' + a]) oneWay++; }
+    for (const a of ids) for (const b of ids) {
+      if (!(a < b)) continue;
+      const x = first[a + '|' + b], y = first[b + '|' + a];
+      if (!x || !y || bc[a] == null || bc[b] == null || x.v === 'stairs' || y.v === 'stairs') continue;
+      checked++;
+      const r = wrap(bc[b] - bc[a] - wrap(x.yaw - y.yaw - 180));
+      const lim = (x.v === 'door' || y.v === 'door') ? 45 : 15;
+      if (Math.abs(r) > 150) add('error', `${a} ↔ ${b}: ${r.toFixed(0)}° residual, bearing probably flipped`, a);
+      else if (Math.abs(r) > lim) add('warn', `${a} ↔ ${b}: ${r.toFixed(1)}° (limit ${lim}°)`, a);
+    }
+    add('info', `${Object.keys(bc).length}/${ids.length} with a bearing · ${checked} pairs checked · ${oneWay} one-way links`);
+    const box = $('findings'); box.innerHTML = '';
+    for (const [lvl, name] of [['error', 'Errors'], ['warn', 'Warnings'], ['info', 'Info']]) {
+      const h = document.createElement('h3'); h.className = lvl; h.textContent = `${name} (${F[lvl].length})`; box.appendChild(h);
+      if (!F[lvl].length) { const p = document.createElement('div'); p.className = 'ok'; p.textContent = 'none'; box.appendChild(p); }
+      for (const f of F[lvl]) { const d = document.createElement('div'); d.className = 'f'; d.textContent = f.m;
+        if (f.s) d.onclick = () => open(f.s); box.appendChild(d); }
+    }
+    renderList();
+  }
+
+  // ---------- UI ----------
+  function renderList() {
+    const el = $('list'); el.innerHTML = '';
+    for (const id of ids) {
+      const d = document.createElement('div'); if (id === cur) d.className = 'on';
+      const b = S[id].desc && S[id].desc.orientation && S[id].desc.orientation.bearingOfCenter;
+      const name = document.createElement('span'); name.textContent = (dirty.has(id) ? '● ' : '') + id.replace(/-pureshot.*$/, '');
+      const tag = document.createElement('span'); tag.className = b == null ? 'nb' : 'b'; tag.textContent = b == null ? 'no bearing' : b.toFixed(0) + '°';
+      d.append(name, tag); d.onclick = () => open(id); el.appendChild(d);
+    }
+  }
+
+  function open(id) {
+    cur = id; picked = null; $('picked').textContent = 'click the panorama to pick a spot';
+    const d = S[id] && S[id].desc;
+    const o = d && d.orientation;
+    $('cur').textContent = id + (o && o.bearingOfCenter != null ? `  ·  center ${o.bearingOfCenter.toFixed(1)}° (${o.reference}, ${o.source})` : '  ·  no bearing');
+    renderList();
+    if (!d || d.coverage !== 'full') { $('msg').textContent = d ? 'partial pano: use orient-viewer.html' : 'descriptor missing'; return; }
+    $('msg').textContent = id;
+    const url = d.representations[0].url;
+    if (!viewer) {
+      viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30 });
+      viewer.addEventListener('click', e => {
+        picked = { yaw: wrap(deg(e.data.yaw)), pitch: deg(e.data.pitch) };
+        $('picked').textContent = `picked yaw ${picked.yaw.toFixed(1)}°, pitch ${picked.pitch.toFixed(1)}°`;
+      });
+    } else viewer.setPanorama(url);
+  }
+
+  function apply() {
+    const b = parseFloat($('bearing').value);
+    if (!S[cur] || !S[cur].desc) { status('open a pano first', true); return; }
+    if (!picked) { status('click the panorama on your landmark first', true); return; }
+    if (isNaN(b)) { status('enter the bearing of that spot (or press N/E/S/W)', true); return; }
+    const center = norm(b - picked.yaw);
+    S[cur].desc.orientation = { bearingOfCenter: +center.toFixed(1), reference: $('ref').value, source: $('src').value, confidence: 'measured' };
+    dirty.add(cur);
+    status(`${cur}: center set to ${center.toFixed(1)}° (not saved yet)`);
+    open(cur); validate();
+  }
+
+  // ---------- save (GitHub contents API, same method as admin.html) ----------
+  const b64 = s => btoa(unescape(encodeURIComponent(s)));
+  async function save() {
+    TOKEN = $('token').value.trim();
+    if (!TOKEN) { status('paste a token first (kept in memory only)', true); return; }
+    const base = `https://api.github.com/repos/${$('owner').value.trim()}/${$('repo').value.trim()}/contents/`;
+    const H = { Authorization: 'token ' + TOKEN, Accept: 'application/vnd.github+json' };
+    let done = 0;
+    for (const id of [...dirty]) {
+      const { desc, path } = S[id];
+      try {
+        const g = await fetch(base + path, { headers: H });
+        if (!g.ok) throw new Error('read ' + g.status + (g.status === 401 || g.status === 403 ? ' (token rejected)' : ''));
+        const sha = (await g.json()).sha;
+        const p = await fetch(base + path, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: `Set orientation: ${id}`, content: b64(JSON.stringify(desc, null, 2)), sha, branch: 'main' }) });
+        if (!p.ok) throw new Error((await p.json()).message || p.status);
+        dirty.delete(id); done++; status(`saved ${done}…`);
+      } catch (e) { status(`${id}: save failed: ${e.message}`, true); renderList(); return; }
+    }
+    renderList(); $('save').disabled = true; status(`saved ${done} descriptor(s)`);
+  }
+
+  // ---------- wiring ----------
+  $('load').onclick = () => $('tour').value.trim() && loadTour($('tour').value.trim()).then(validate);
+  $('apply').onclick = apply;
+  $('save').onclick = save;
+  $('start').onchange = validate;
+  $('prev').onclick = () => { const i = ids.indexOf(cur); if (i > 0) open(ids[i - 1]); };
+  $('next').onclick = () => { const i = ids.indexOf(cur); if (i >= 0 && i < ids.length - 1) open(ids[i + 1]); };
+  document.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { $('bearing').value = b.dataset.b; });
+  document.addEventListener('input', () => { $('save').disabled = dirty.size === 0; });
+  const q = new URLSearchParams(location.search).get('t');
+  if (q) { $('tour').value = q; $('load').click(); }
+  setInterval(() => { $('save').disabled = dirty.size === 0; }, 500);
+</script>
+</body>
+</html>
