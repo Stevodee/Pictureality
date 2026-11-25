@@ -1,0 +1,61 @@
+{
+  "title": "Upper Landing Stairs",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-104534-00-186-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113002-00-191-pureshot",
+      "label": "Stair Bottom",
+      "type": "portal",
+      "variant": "stairs",
+      "location": {
+        "yaw": 14.6,
+        "pitch": -44.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113002-00-191-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-104558-00-187-pureshot",
+      "label": "Upper Landing",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -172.1,
+        "pitch": -19.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-104558-00-187-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-103746-00-185-pureshot",
+      "label": "Bedroom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -143.5,
+        "pitch": 1.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-103746-00-185-pureshot"
+        }
+      ]
+    }
+  ]
+}

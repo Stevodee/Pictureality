@@ -1,0 +1,24 @@
+{
+  "id": "servantlanding-gibsonhouse",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/Servantlanding_Gibsonhouse.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 177.8,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 177.8
+  }
+}

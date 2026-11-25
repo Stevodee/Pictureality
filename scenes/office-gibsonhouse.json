@@ -1,0 +1,45 @@
+{
+  "title": "Office Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/office-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-living3-gibsonhouse",
+      "label": "Living3 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 94.8,
+        "pitch": -3.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "living3-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-foyer-gibsonhouse",
+      "label": "Foyer Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 115.9,
+        "pitch": -1.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "foyer-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "title": "Kitchen",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-112734-00-188-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-112900-00-190-pureshot",
+      "label": "Basement",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -141.1,
+        "pitch": -0.9
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-112900-00-190-pureshot"
+        }
+      ]
+    }
+  ]
+}

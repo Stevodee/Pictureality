@@ -1,0 +1,29 @@
+{
+  "title": "Dining Room",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-102738-00-183-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113046-00-192-pureshot",
+      "label": "Entrance",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 122.7,
+        "pitch": 2.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113046-00-192-pureshot"
+        }
+      ]
+    }
+  ]
+}

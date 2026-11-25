@@ -1,0 +1,61 @@
+{
+  "title": "Basement",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-112900-00-190-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-112734-00-188-pureshot",
+      "label": "Kitchen",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 97.9,
+        "pitch": -5.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-112734-00-188-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-112818-00-189-pureshot",
+      "label": "Meeting room",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -94.9,
+        "pitch": -6.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-112818-00-189-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113002-00-191-pureshot",
+      "label": "Stair Bottom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 139.3,
+        "pitch": -0.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113002-00-191-pureshot"
+        }
+      ]
+    }
+  ]
+}

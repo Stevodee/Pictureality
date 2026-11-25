@@ -1,0 +1,16 @@
+{
+  "title": "IMG_3785",
+  "description": "Test pair, first shot.",
+  "media": [
+    { "id": "main", "type": "panorama", "descriptor": "descriptors/img_3785.json" }
+  ],
+  "objects": [
+    {
+      "id": "to-img-3786",
+      "label": "To IMG_3786",
+      "type": "portal",
+      "location": { "yaw": 0, "pitch": 0 },
+      "actions": [ { "type": "goto", "scene": "img_3786" } ]
+    }
+  ]
+}

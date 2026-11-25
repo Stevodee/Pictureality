@@ -1,0 +1,29 @@
+{
+  "title": "Living Room",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-102156-00-182-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113046-00-192-pureshot",
+      "label": "Entrance",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -134.0,
+        "pitch": 2.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113046-00-192-pureshot"
+        }
+      ]
+    }
+  ]
+}

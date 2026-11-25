@@ -1,0 +1,77 @@
+{
+  "title": "Foyer Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/foyer-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-dining-gibsonhouse",
+      "label": "Dining Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 84.2,
+        "pitch": 6.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "dining-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-office-gibsonhouse",
+      "label": "Office Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 1.2,
+        "pitch": 9.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "office-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-landing-gibsonhouse",
+      "label": "Landing Gibsonhouse",
+      "type": "portal",
+      "variant": "stairs",
+      "location": {
+        "yaw": 111.0,
+        "pitch": 21.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "landing-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-living3-gibsonhouse",
+      "label": "Living3 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -176.8,
+        "pitch": 0.8
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "living3-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

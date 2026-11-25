@@ -1,0 +1,61 @@
+{
+  "title": "Side Garden",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113526-00-196-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113413-00-195-pureshot",
+      "label": "Back Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 160.0,
+        "pitch": 1.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113413-00-195-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113619-00-197-pureshot",
+      "label": "Front Left",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -65.4,
+        "pitch": -7.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113619-00-197-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113719-00-198-pureshot",
+      "label": "Front Gate",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -90.7,
+        "pitch": -4.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113719-00-198-pureshot"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "title": "Living1 Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/living1-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-living3-gibsonhouse",
+      "label": "Living3 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 95.8,
+        "pitch": -17.8
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "living3-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-kitchen-gibsonhouse",
+      "label": "kitchen Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -99.2,
+        "pitch": 1.5
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "kitchen-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-servantlanding-gibsonhouse",
+      "label": "Servantlanding Gibsonhouse",
+      "type": "portal",
+      "variant": "stairs",
+      "location": {
+        "yaw": -108.3,
+        "pitch": 8.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "servantlanding-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "title": "Stair Bottom",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113002-00-191-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-104534-00-186-pureshot",
+      "label": "Upper Landing Stairs",
+      "type": "portal",
+      "variant": "stairs",
+      "location": {
+        "yaw": 4.7,
+        "pitch": 43.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-104534-00-186-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-102156-00-182-pureshot",
+      "label": "Living Room",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -141.2,
+        "pitch": -1.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-102156-00-182-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113046-00-192-pureshot",
+      "label": "Entrance",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 175.9,
+        "pitch": -29.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113046-00-192-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113158-00-193-pureshot",
+      "label": "Front Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 177.8,
+        "pitch": -0.8
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113158-00-193-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-102738-00-183-pureshot",
+      "label": "Dining Room",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 134.6,
+        "pitch": 2.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-102738-00-183-pureshot"
+        }
+      ]
+    }
+  ]
+}

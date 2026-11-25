@@ -1,0 +1,24 @@
+{
+  "id": "living1-gibsonhouse",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/Living1_Gibsonhouse.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 0.5,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 0.5
+  }
+}

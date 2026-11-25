@@ -1,0 +1,29 @@
+{
+  "title": "Bedroom3 Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/bedroom3-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-hallway-gibsonhouse",
+      "label": "Hallway Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -28.6,
+        "pitch": -4.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "hallway-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

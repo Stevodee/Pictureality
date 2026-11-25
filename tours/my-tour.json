@@ -1,0 +1,21 @@
+{
+  "id": "my-tour",
+  "title": "My Tour",
+  "start": "living3-gibsonhouse",
+  "scenes": [
+    "living3-gibsonhouse",
+    "foyer-gibsonhouse",
+    "landing-gibsonhouse",
+    "hallway-gibsonhouse",
+    "bedroom1-gibsonhouse",
+    "bedroom2-gibsonhouse",
+    "bedroom3-gibsonhouse",
+    "bedroom4-gibsonhouse",
+    "bedroom5-gibsonhouse",
+    "servantlanding-gibsonhouse",
+    "office-gibsonhouse",
+    "kitchen-gibsonhouse",
+    "dining-gibsonhouse",
+    "living1-gibsonhouse"
+  ]
+}

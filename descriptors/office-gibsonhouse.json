@@ -1,0 +1,24 @@
+{
+  "id": "office-gibsonhouse",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/Office_Gibsonhouse.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 277.6,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 277.6
+  }
+}

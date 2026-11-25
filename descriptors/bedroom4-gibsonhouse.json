@@ -1,0 +1,24 @@
+{
+  "id": "bedroom4-gibsonhouse",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/Bedroom4_Gibsonhouse.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 73.9,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 73.9
+  }
+}

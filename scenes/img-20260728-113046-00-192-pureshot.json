@@ -1,0 +1,77 @@
+{
+  "title": "Entrance",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113046-00-192-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-102156-00-182-pureshot",
+      "label": "Living Room",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 33.8,
+        "pitch": -1.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-102156-00-182-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113002-00-191-pureshot",
+      "label": "Stair Bottom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 92.3,
+        "pitch": -21.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113002-00-191-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113413-00-195-pureshot",
+      "label": "Back Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 104.5,
+        "pitch": -0.5
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113413-00-195-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-102738-00-183-pureshot",
+      "label": "Dining Room",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 155.8,
+        "pitch": 0.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-102738-00-183-pureshot"
+        }
+      ]
+    }
+  ]
+}

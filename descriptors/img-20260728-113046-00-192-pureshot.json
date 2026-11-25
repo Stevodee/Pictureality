@@ -1,0 +1,24 @@
+{
+  "id": "img-20260728-113046-00-192-pureshot",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/IMG_20260728_113046_00_192_PureShot.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 264.7,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 264.7
+  }
+}

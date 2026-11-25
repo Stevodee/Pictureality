@@ -1,0 +1,109 @@
+{
+  "title": "Hallway Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/hallway-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-servantlanding-gibsonhouse",
+      "label": "Servantlanding Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 146.4,
+        "pitch": 6.8
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "servantlanding-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom1-gibsonhouse",
+      "label": "Bedroom1 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 165.9,
+        "pitch": 4.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom1-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-landing-gibsonhouse",
+      "label": "Landing Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 151.2,
+        "pitch": -13.5
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "landing-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom5-gibsonhouse",
+      "label": "Bedroom5 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -118.3,
+        "pitch": 4.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom5-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom4-gibsonhouse",
+      "label": "Bedroom4 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -28.3,
+        "pitch": -0.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom4-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom3-gibsonhouse",
+      "label": "Bedroom3 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 44.1,
+        "pitch": 0.5
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom3-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

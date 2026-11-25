@@ -1,0 +1,77 @@
+{
+  "title": "Landing Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/landing-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-hallway-gibsonhouse",
+      "label": "Hallway Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 137.0,
+        "pitch": 3.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "hallway-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-foyer-gibsonhouse",
+      "label": "Foyer Gibsonhouse",
+      "type": "portal",
+      "variant": "stairs",
+      "location": {
+        "yaw": 122.9,
+        "pitch": -20.5
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "foyer-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom1-gibsonhouse",
+      "label": "Bedroom1 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 53.1,
+        "pitch": -0.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom1-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom2-gibsonhouse",
+      "label": "Bedroom2 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -136.8,
+        "pitch": 7.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom2-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

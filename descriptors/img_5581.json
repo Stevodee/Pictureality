@@ -1,0 +1,55 @@
+{
+  "id": "img_5581",
+  "type": "panorama",
+  "coverage": "partial",
+  "panoData": {
+    "fullWidth": 22202,
+    "fullHeight": 11101,
+    "croppedWidth": 15128,
+    "croppedHeight": 3628,
+    "croppedX": 3537,
+    "croppedY": 3736,
+    "poseHeading": 22.55
+  },
+  "headingReference": "true-north",
+  "projection": "cylindrical-approximated-as-equirectangular",
+  "pxPerDegree": 61.67,
+  "approxHorizontalSweepDeg": 245.3,
+  "derived": [
+    "ppd:device-profile:iPhone XS",
+    "poseHeading:exif-gps-direction-treated-as-center"
+  ],
+  "tiles": {
+    "adapter": "equirectangular-tiles",
+    "width": 21504,
+    "height": 10752,
+    "cols": 32,
+    "rows": 16,
+    "tileSize": 672,
+    "tilePattern": "tiles/img_5581/tile_{col}_{row}.jpg",
+    "populated": {
+      "colMin": 5,
+      "colMax": 26,
+      "rowMin": 5,
+      "rowMax": 10
+    },
+    "stripInGrid": {
+      "x": 3426,
+      "y": 3619,
+      "width": 14652,
+      "height": 3514
+    },
+    "base": {
+      "url": "tiles/img_5581/base.jpg",
+      "panoData": {
+        "isEquirectangular": true,
+        "fullWidth": 3006,
+        "fullHeight": 1503,
+        "croppedWidth": 2048,
+        "croppedHeight": 491,
+        "croppedX": 479,
+        "croppedY": 506
+      }
+    }
+  }
+}

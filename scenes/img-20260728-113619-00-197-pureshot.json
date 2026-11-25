@@ -1,0 +1,61 @@
+{
+  "title": "Front Left",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113619-00-197-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113526-00-196-pureshot",
+      "label": "Side Garden",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -51.0,
+        "pitch": -7.8
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113526-00-196-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113158-00-193-pureshot",
+      "label": "Front Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 28.0,
+        "pitch": -5.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113158-00-193-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113719-00-198-pureshot",
+      "label": "Front Gate",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 84.4,
+        "pitch": -5.2
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113719-00-198-pureshot"
+        }
+      ]
+    }
+  ]
+}

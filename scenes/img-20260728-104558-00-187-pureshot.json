@@ -1,0 +1,77 @@
+{
+  "title": "Upper Landing",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-104558-00-187-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-103017-00-184-pureshot",
+      "label": "Ballroom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 36.7,
+        "pitch": -0.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-103017-00-184-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113002-00-191-pureshot",
+      "label": "Stair Bottom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 13.8,
+        "pitch": -12.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113002-00-191-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-104534-00-186-pureshot",
+      "label": "Upper Landing Stairs",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 0.4,
+        "pitch": -30.9
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-104534-00-186-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-103746-00-185-pureshot",
+      "label": "Bedroom",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -81.9,
+        "pitch": 1.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-103746-00-185-pureshot"
+        }
+      ]
+    }
+  ]
+}

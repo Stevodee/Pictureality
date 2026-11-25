@@ -1,0 +1,77 @@
+{
+  "title": "Right Front",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113252-00-194-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113719-00-198-pureshot",
+      "label": "Front Gate",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -139.7,
+        "pitch": -4.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113719-00-198-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113158-00-193-pureshot",
+      "label": "Front Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -89.4,
+        "pitch": -5.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113158-00-193-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113619-00-197-pureshot",
+      "label": "Front Left",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -100.6,
+        "pitch": -2.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113619-00-197-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113413-00-195-pureshot",
+      "label": "Back Door",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -26.8,
+        "pitch": -0.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113413-00-195-pureshot"
+        }
+      ]
+    }
+  ]
+}

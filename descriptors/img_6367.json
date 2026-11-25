@@ -1,0 +1,55 @@
+{
+  "id": "img_6367",
+  "type": "panorama",
+  "coverage": "partial",
+  "panoData": {
+    "fullWidth": 23340,
+    "fullHeight": 11670,
+    "croppedWidth": 9336,
+    "croppedHeight": 3814,
+    "croppedX": 7002,
+    "croppedY": 3928,
+    "poseHeading": 17.79
+  },
+  "headingReference": "true-north",
+  "projection": "cylindrical-approximated-as-equirectangular",
+  "pxPerDegree": 64.83,
+  "approxHorizontalSweepDeg": 144.0,
+  "derived": [
+    "ppd:from-sweep",
+    "poseHeading:exif-gps-direction-treated-as-center"
+  ],
+  "tiles": {
+    "adapter": "equirectangular-tiles",
+    "width": 21504,
+    "height": 10752,
+    "cols": 32,
+    "rows": 16,
+    "tileSize": 672,
+    "tilePattern": "tiles/img_6367/tile_{col}_{row}.jpg",
+    "populated": {
+      "colMin": 9,
+      "colMax": 22,
+      "rowMin": 5,
+      "rowMax": 10
+    },
+    "stripInGrid": {
+      "x": 6451,
+      "y": 3619,
+      "width": 8602,
+      "height": 3514
+    },
+    "base": {
+      "url": "tiles/img_6367/base.jpg",
+      "panoData": {
+        "isEquirectangular": true,
+        "fullWidth": 5120,
+        "fullHeight": 2560,
+        "croppedWidth": 2048,
+        "croppedHeight": 837,
+        "croppedX": 1536,
+        "croppedY": 862
+      }
+    }
+  }
+}

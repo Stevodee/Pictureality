@@ -1,0 +1,29 @@
+{
+  "title": "Ballroom",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-103017-00-184-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-104534-00-186-pureshot",
+      "label": "Upper Landing Stairs",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 178.6,
+        "pitch": 0.9
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-104534-00-186-pureshot"
+        }
+      ]
+    }
+  ]
+}

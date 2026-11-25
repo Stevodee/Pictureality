@@ -1,0 +1,29 @@
+{
+  "title": "Bedroom",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-103746-00-185-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-104558-00-187-pureshot",
+      "label": "Upper Landing",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 86.2,
+        "pitch": -1.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-104558-00-187-pureshot"
+        }
+      ]
+    }
+  ]
+}

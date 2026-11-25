@@ -1,0 +1,61 @@
+{
+  "title": "Rear",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260914-020431-00-030-pureshot-8k.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260914-020650-00-032-pureshot-8k",
+      "label": "Front",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 43.6,
+        "pitch": 0.9
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020650-00-032-pureshot-8k"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260914-020650-00-032-pureshot-8k-2",
+      "label": "Front",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -34.5,
+        "pitch": 4.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020650-00-032-pureshot-8k"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260914-020607-00-031-pureshot-8k",
+      "label": "Interior",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 5.6,
+        "pitch": 7.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020607-00-031-pureshot-8k"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "title": "Bedroom1 Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/bedroom1-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-landing-gibsonhouse",
+      "label": "Landing Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -175.0,
+        "pitch": -25.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "landing-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-bedroom2-gibsonhouse",
+      "label": "Bedroom2 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -175.6,
+        "pitch": 4.6
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "bedroom2-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-servantlanding-gibsonhouse",
+      "label": "Servantlanding Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -152.7,
+        "pitch": 0.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "servantlanding-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}

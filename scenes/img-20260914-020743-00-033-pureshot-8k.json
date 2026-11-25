@@ -1,0 +1,61 @@
+{
+  "title": "Gate 2",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260914-020743-00-033-pureshot-8k.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260914-020907-00-034-pureshot-8k",
+      "label": "Gate 1",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -12.2,
+        "pitch": 1.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020907-00-034-pureshot-8k"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260914-020907-00-034-pureshot-8k-2",
+      "label": "Gate 1",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 17.7,
+        "pitch": 2.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020907-00-034-pureshot-8k"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260914-020650-00-032-pureshot-8k",
+      "label": "Front",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -179.1,
+        "pitch": 4.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260914-020650-00-032-pureshot-8k"
+        }
+      ]
+    }
+  ]
+}

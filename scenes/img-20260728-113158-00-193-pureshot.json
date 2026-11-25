@@ -1,0 +1,93 @@
+{
+  "title": "Front Door",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-113158-00-193-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-113252-00-194-pureshot",
+      "label": "Right Front",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 86.9,
+        "pitch": -6.1
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113252-00-194-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113719-00-198-pureshot",
+      "label": "Front Gate",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -173.9,
+        "pitch": -5.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113719-00-198-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113619-00-197-pureshot",
+      "label": "Front Left",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -107.8,
+        "pitch": -5.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113619-00-197-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113526-00-196-pureshot",
+      "label": "Side Garden",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -65.7,
+        "pitch": -2.4
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113526-00-196-pureshot"
+        }
+      ]
+    },
+    {
+      "id": "to-img-20260728-113046-00-192-pureshot",
+      "label": "Entrance",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 1.7,
+        "pitch": 6.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-113046-00-192-pureshot"
+        }
+      ]
+    }
+  ]
+}

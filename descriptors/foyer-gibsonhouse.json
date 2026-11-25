@@ -1,0 +1,24 @@
+{
+  "id": "foyer-gibsonhouse",
+  "type": "panorama",
+  "coverage": "full",
+  "representations": [
+    {
+      "kind": "equirectangular-jpg",
+      "url": "https://stevodee.github.io/Pictureality/panos/Foyer_Gibsonhouse.jpg"
+    }
+  ],
+  "orientation": {
+    "bearingOfCenter": 188.0,
+    "reference": "true",
+    "source": "manual-landmark",
+    "confidence": "measured"
+  },
+  "derived": [
+    "migrated-from-tours.json"
+  ],
+  "headingReference": "true-north",
+  "panoData": {
+    "poseHeading": 188.0
+  }
+}

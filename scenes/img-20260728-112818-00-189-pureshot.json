@@ -1,0 +1,29 @@
+{
+  "title": "Meeting room",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/img-20260728-112818-00-189-pureshot.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-img-20260728-112900-00-190-pureshot",
+      "label": "Basement",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 165.9,
+        "pitch": 11.7
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "img-20260728-112900-00-190-pureshot"
+        }
+      ]
+    }
+  ]
+}

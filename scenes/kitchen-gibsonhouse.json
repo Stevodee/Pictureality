@@ -1,0 +1,45 @@
+{
+  "title": "kitchen Gibsonhouse",
+  "description": "",
+  "media": [
+    {
+      "id": "main",
+      "type": "panorama",
+      "descriptor": "descriptors/kitchen-gibsonhouse.json"
+    }
+  ],
+  "objects": [
+    {
+      "id": "to-living1-gibsonhouse",
+      "label": "Living1 Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": 146.5,
+        "pitch": 6.3
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "living1-gibsonhouse"
+        }
+      ]
+    },
+    {
+      "id": "to-dining-gibsonhouse",
+      "label": "Dining Gibsonhouse",
+      "type": "portal",
+      "variant": "door",
+      "location": {
+        "yaw": -157.0,
+        "pitch": 3.0
+      },
+      "actions": [
+        {
+          "type": "goto",
+          "scene": "dining-gibsonhouse"
+        }
+      ]
+    }
+  ]
+}
