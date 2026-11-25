@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tour validator</title>
+<style>
+  body { margin: 0; padding: 20px; max-width: 900px; background: #0b0d10; color: #e8e6df;
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, sans-serif; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  form { margin-bottom: 18px; }
+  input { background: #1a1e25; border: 1px solid #262b33; color: #e8e6df; padding: 6px 8px;
+          font: 13px ui-monospace, monospace; border-radius: 4px; }
+  button { background: #d98a3d; border: 0; border-radius: 4px; padding: 7px 14px; font-weight: 600; cursor: pointer; }
+  h2 { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; margin: 22px 0 6px; }
+  h2.error { color: #e0705a; } h2.warn { color: #d98a3d; } h2.info { color: #8b9099; }
+  ul { margin: 0; padding: 0; list-style: none; }
+  li { padding: 5px 0; border-bottom: 1px solid #262b33; font-family: ui-monospace, monospace; font-size: 12px; }
+  a { color: #e8b36f; text-decoration: none; margin-left: 8px; }
+  .ok { color: #5a9e6f; }
+  .hint { color: #8b9099; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>Tour validator</h1>
+<form method="get">
+  tour <input name="t" id="t" placeholder="campell-house">
+  start scene <input name="s" id="s" placeholder="blank = first in tour" size="40">
+  <button>Run</button>
+</form>
+<div class="hint">Read-only. Reads tours/, scenes/ and descriptors/ from this server; writes nothing.</div>
+<div id="out"></div>
+
+<script>
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const tour = q.get('t'), startQ = q.get('s');
+  document.getElementById('t').value = tour || '';
+  document.getElementById('s').value = startQ || '';
+  if (!tour) return;
+
+  const out = document.getElementById('out');
+  const J = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
+  const wrap = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const F = { error: [], warn: [], info: [] };
+  const add = (lvl, msg, scene) => F[lvl].push({ msg, scene });
+
+  let ids;
+  try { ids = (await J(`tours/${tour}.json`)).scenes; }
+  catch (e) { out.textContent = 'Cannot load tour: ' + e.message; return; }
+  const start = startQ || ids[0];
+
+  const bc = {}, ref = {}, links = {};
+  for (const id of ids) {
+    let s;
+    try { s = await J(`scenes/${id}.json`); } catch (e) { add('error', `scene file missing: ${id}`, id); continue; }
+    links[id] = [];
+    for (const o of s.objects || [])
+      for (const a of o.actions || [])
+        if (a.type === 'goto') links[id].push({ to: a.scene, yaw: o.location.yaw, variant: o.variant });
+    try {
+      const d = await J(s.media[0].descriptor);
+      const or = d.orientation || {};
+      if (or.bearingOfCenter != null) { bc[id] = or.bearingOfCenter; ref[id] = or.reference; }
+      else add('error', `no bearing: ${id}`, id);
+    } catch (e) { add('error', `descriptor missing: ${id}`, id); }
+  }
+
+  // dangling targets
+  for (const a of ids)
+    for (const l of links[a] || [])
+      if (!ids.includes(l.to)) add('error', `${a} → ${l.to}: target is not in this tour`, a);
+
+  // mixed references
+  const refs = [...new Set(Object.values(ref))];
+  if (refs.length > 1) add('error', `mixed bearing references in one tour: ${refs.join(', ')}`);
+
+  // reachability
+  const reach = src => {
+    const seen = new Set([src]), st = [src];
+    while (st.length) for (const l of links[st.pop()] || [])
+      if (ids.includes(l.to) && !seen.has(l.to)) { seen.add(l.to); st.push(l.to); }
+    return seen;
+  };
+  if (!ids.includes(start)) add('error', `start scene is not in this tour: ${start}`);
+  else {
+    const r = reach(start);
+    for (const id of ids) {
+      if (!r.has(id)) add('error', `unreachable from start: ${id}`, id);
+      else if (!reach(id).has(start)) add('error', `dead end (no way back to start): ${id}`, id);
+    }
+  }
+
+  // residuals on reciprocal pairs (stairs exempt, doors get a wide tolerance)
+  const first = {};
+  for (const a of ids) for (const l of links[a] || []) if (!first[a + '|' + l.to]) first[a + '|' + l.to] = l;
+  let oneWay = 0, checked = 0;
+  for (const k in first) { const [a, b] = k.split('|'); if (ids.includes(b) && !first[b + '|' + a]) oneWay++; }
+  for (const a of ids) for (const b of ids) {
+    if (!(a < b)) continue;
+    const x = first[a + '|' + b], y = first[b + '|' + a];
+    if (!x || !y || bc[a] == null || bc[b] == null) continue;
+    if (x.variant === 'stairs' || y.variant === 'stairs') continue;
+    checked++;
+    const r = wrap(bc[b] - bc[a] - wrap(x.yaw - y.yaw - 180));
+    const lim = (x.variant === 'door' || y.variant === 'door') ? 45 : 15;
+    if (Math.abs(r) > 150) add('error', `${a} ↔ ${b}: residual ${r.toFixed(0)}°, bearing probably flipped 180°`, a);
+    else if (Math.abs(r) > lim) add('warn', `${a} ↔ ${b}: residual ${r.toFixed(1)}° (limit ${lim}°)`, a);
+  }
+  add('info', `${ids.length} scenes · ${Object.keys(bc).length} with a bearing · ${checked} reciprocal pairs checked · start: ${start}`);
+  add('info', `${oneWay} one-way links (fine if intentional)`);
+
+  // render
+  const titles = { error: 'Errors', warn: 'Warnings', info: 'Info' };
+  for (const lvl of ['error', 'warn', 'info']) {
+    const h = document.createElement('h2'); h.className = lvl;
+    h.textContent = `${titles[lvl]} (${F[lvl].length})`; out.appendChild(h);
+    if (!F[lvl].length) { const p = document.createElement('div'); p.className = 'ok'; p.textContent = 'none'; out.appendChild(p); continue; }
+    const ul = document.createElement('ul');
+    for (const f of F[lvl]) {
+      const li = document.createElement('li'); li.textContent = f.msg;
+      if (f.scene) {
+        const a = document.createElement('a');
+        a.href = `scene-viewer.html?s=${encodeURIComponent(f.scene)}&t=${encodeURIComponent(tour)}`;
+        a.target = '_blank'; a.textContent = 'open';
+        li.appendChild(a);
+      }
+      ul.appendChild(li);
+    }
+    out.appendChild(ul);
+  }
+})();
+</script>
+</body>
+</html>

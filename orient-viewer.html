@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set north</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-tiles-adapter@5.7.1/index.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; }
+  #viewer { width: 100%; height: 100%; }
+  .box {
+    position: fixed; z-index: 9999; background: rgba(0,0,0,.78); color: #fff;
+    padding: 8px 12px; font: 13px/1.5 ui-monospace, monospace; border-radius: 6px;
+  }
+  #hud { top: 10px; left: 10px; pointer-events: none; }
+  #panel { bottom: 10px; left: 10px; max-width: 460px; display: none; font-family: -apple-system, sans-serif; }
+  #panel label { display: block; margin: 6px 0 2px; color: #bbb; font-size: 12px; }
+  #panel input, #panel select { font: 13px ui-monospace, monospace; padding: 3px 6px; }
+  #panel button { margin: 6px 6px 0 0; padding: 4px 10px; cursor: pointer; }
+  #cmd { margin: 8px 0 0; white-space: pre-wrap; word-break: break-all; color: #e8b36f; font: 12px ui-monospace, monospace; }
+  #dot {
+    position: fixed; z-index: 9998; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border: 2px solid #e8b36f; border-radius: 50%; pointer-events: none; display: none;
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.module.js",
+    "@photo-sphere-viewer/equirectangular-tiles-adapter": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-tiles-adapter@5.7.1/index.module.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="viewer"></div>
+<div id="dot"></div>
+<div id="hud" class="box">loading…</div>
+
+<div id="panel" class="box">
+  <div id="picked"></div>
+  <label>Bearing of that spot (°, 0–360)</label>
+  <input id="bearing" type="number" step="0.1" min="0" max="360">
+  <div>
+    That spot is due:
+    <button data-b="0">N</button><button data-b="90">E</button><button data-b="180">S</button><button data-b="270">W</button>
+  </div>
+  <label>Bearing is</label>
+  <select id="ref">
+    <option value="true">true north (map / Google Earth)</option>
+    <option value="magnetic">magnetic (compass)</option>
+  </select>
+  <label>Where it came from</label>
+  <select id="src">
+    <option value="manual-landmark">map / Google Earth</option>
+    <option value="manual-compass">compass on site</option>
+  </select>
+  <pre id="cmd"></pre>
+  <button id="copy">Copy command</button>
+</div>
+
+<div id="nav" class="box" style="bottom:10px;right:10px;display:none;font-family:-apple-system,sans-serif">
+  <div id="navinfo"></div>
+  <button id="prev">&#9664; Prev</button><button id="next">Next &#9654;</button><br>
+  <button id="copyall">Copy all commands</button><button id="clearall">Clear</button>
+</div>
+
+<script type="module">
+  import { Viewer } from '@photo-sphere-viewer/core';
+  import { EquirectangularTilesAdapter } from '@photo-sphere-viewer/equirectangular-tiles-adapter';
+
+  // e.g. orient-viewer.html?d=img_3785
+  const slug = new URLSearchParams(location.search).get('d') || 'img_6367';
+  const tourId = new URLSearchParams(location.search).get('t');   // optional: ?t=campell-house
+  const STORE = 'orientCmds';
+  const saved = () => JSON.parse(sessionStorage.getItem(STORE) || '{}');
+  const saveCmd = (k, v) => { const m = saved(); m[k] = v; sessionStorage.setItem(STORE, JSON.stringify(m)); };
+  let tourScenes = [];
+  if (tourId) {
+    try { tourScenes = (await (await fetch(`tours/${tourId}.json`, { cache: 'no-store' })).json()).scenes || []; }
+    catch (e) { console.warn('tour load failed', e); }
+  }
+  const desc = await (await fetch(`descriptors/${slug}.json`, { cache: 'no-store' })).json();
+  const full = desc.coverage === 'full';   // full 360: single image, no edge clamp
+  const t = desc.tiles;
+
+  const bc0 = (desc.orientation && desc.orientation.bearingOfCenter != null)
+    ? desc.orientation.bearingOfCenter
+    : (desc.panoData?.poseHeading ?? null);
+  const orientInfo = desc.orientation
+    ? `${desc.orientation.reference}, ${desc.orientation.source}, ${desc.orientation.confidence}`
+    : 'no orientation block';
+
+  const dpp = full ? 0 : 360 / t.width;
+  const halfYaw = full ? 180 : (t.stripInGrid.width / 2) * dpp;
+  const halfPitch = full ? 90 : (t.stripInGrid.height / 2) * dpp;
+  const { colMin, colMax, rowMin, rowMax } = full ? {} : t.populated;
+  const tileUrl = full ? null : (c, r) =>
+    (c >= colMin && c <= colMax && r >= rowMin && r <= rowMax)
+      ? t.tilePattern.replace('{col}', c).replace('{row}', r) : null;
+
+  const viewer = new Viewer({
+    container: document.getElementById('viewer'),
+    ...(full ? {} : { adapter: EquirectangularTilesAdapter }),
+    panorama: full ? desc.representations[0].url
+      : { width: t.width, cols: t.cols, rows: t.rows,
+          baseUrl: t.base.url, basePanoData: t.base.panoData, tileUrl },
+    navbar: ['zoom', 'fullscreen'],
+    defaultZoomLvl: 30,
+  });
+
+  const $ = id => document.getElementById(id);
+  const toDeg = r => r * 180 / Math.PI;
+  const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const norm = d => ((d % 360) + 360) % 360;
+
+  // --- clamp to the photo footprint (same approach as the test viewer) ---
+  let clamping = false;
+  function clampView() {
+    if (full || clamping) return;
+    const st = viewer.state || {};
+    const maxY = Math.max(0, halfYaw - (st.hFov || 0) / 2);
+    const maxP = Math.max(0, halfPitch - (st.vFov || 0) / 2);
+    const pos = viewer.getPosition();
+    const y = wrap180(toDeg(pos.yaw)), p = toDeg(pos.pitch);
+    const cy = Math.max(-maxY, Math.min(maxY, y));
+    const cp = Math.max(-maxP, Math.min(maxP, p));
+    if (Math.abs(cy - y) > 0.01 || Math.abs(cp - p) > 0.01) {
+      clamping = true;
+      viewer.rotate({ yaw: `${cy}deg`, pitch: `${cp}deg` });
+      clamping = false;
+    }
+  }
+
+  // --- HUD: where the cardinal directions fall under the current orientation ---
+  function cardinals() {
+    if (bc0 == null) return 'no bearing yet — pick a landmark';
+    return [['N', 0], ['E', 90], ['S', 180], ['W', 270]].map(([n, b]) => {
+      const y = wrap180(b - bc0);
+      return Math.abs(y) <= halfYaw ? `${n} @ yaw ${y.toFixed(0)}°` : `${n} out of frame`;
+    }).join(' · ');
+  }
+
+  let picked = null;   // { yaw, pitch } in degrees
+
+  function show(pos) {
+    const yaw = wrap180(toDeg(pos.yaw)), pitch = toDeg(pos.pitch);
+    $('hud').innerHTML =
+      `${slug}: center bearing ${bc0 == null ? '?' : bc0.toFixed(1)}° (${orientInfo})<br>` +
+      `yaw ${yaw.toFixed(1)}° pitch ${pitch.toFixed(1)}°` +
+      (bc0 == null ? '' : ` → bearing ${norm(bc0 + yaw).toFixed(1)}°`) + `<br>` +
+      cardinals() + `<br>click a landmark to set north`;
+    placeDot();
+  }
+
+  function placeDot() {
+    const dot = $('dot');
+    if (!picked) { dot.style.display = 'none'; return; }
+    const p = viewer.dataHelper.sphericalCoordsToViewerCoords({
+      yaw: picked.yaw * Math.PI / 180, pitch: picked.pitch * Math.PI / 180 });
+    const r = $('viewer').getBoundingClientRect();
+    if (!p || p.x < 0 || p.y < 0 || p.x > r.width || p.y > r.height) { dot.style.display = 'none'; return; }
+    dot.style.display = 'block';
+    dot.style.left = (r.left + p.x) + 'px';
+    dot.style.top = (r.top + p.y) + 'px';
+  }
+
+  function updateCmd() {
+    if (!picked) return;
+    const b = parseFloat($('bearing').value);
+    if (isNaN(b)) { $('cmd').textContent = 'enter the bearing of the clicked spot'; return; }
+    const center = norm(b - picked.yaw);
+    const line = `python3 set_orientation.py ${slug} --bearing-of-center ${center.toFixed(1)} ` +
+      `--reference ${$('ref').value} --source ${$('src').value}`;
+    $('cmd').textContent = `bearing of image center = ${center.toFixed(1)}°\n\n` + line;
+    saveCmd(slug, line);
+    refreshNav();
+  }
+
+  viewer.addEventListener('click', e => {
+    picked = { yaw: wrap180(toDeg(e.data.yaw)), pitch: toDeg(e.data.pitch) };
+    $('panel').style.display = 'block';
+    $('picked').textContent = `clicked: yaw ${picked.yaw.toFixed(1)}°, pitch ${picked.pitch.toFixed(1)}°`;
+    updateCmd();
+    placeDot();
+  });
+
+  $('bearing').addEventListener('input', updateCmd);
+  $('ref').addEventListener('change', updateCmd);
+  $('src').addEventListener('change', updateCmd);
+  document.querySelectorAll('[data-b]').forEach(btn =>
+    btn.addEventListener('click', () => { $('bearing').value = btn.dataset.b; updateCmd(); }));
+  $('copy').addEventListener('click', () => {
+    const line = $('cmd').textContent.split('\n').find(l => l.startsWith('python3'));
+    if (line) navigator.clipboard.writeText(line);
+  });
+
+  // --- tour mode: step through every pano, queue one command each, copy them all at the end ---
+  function refreshNav() {
+    if (!tourScenes.length) return;
+    $('nav').style.display = 'block';
+    $('navinfo').textContent = `${tourScenes.indexOf(slug) + 1}/${tourScenes.length} · ${Object.keys(saved()).length} queued`;
+  }
+  if (tourScenes.length) {
+    const i = tourScenes.indexOf(slug);
+    const go = j => { if (j >= 0 && j < tourScenes.length) location.href = `orient-viewer.html?d=${tourScenes[j]}&t=${tourId}`; };
+    $('prev').onclick = () => go(i - 1);
+    $('next').onclick = () => go(i + 1);
+    $('copyall').onclick = () => navigator.clipboard.writeText(Object.values(saved()).join('\n') + '\n');
+    $('clearall').onclick = () => { sessionStorage.removeItem(STORE); refreshNav(); };
+    refreshNav();
+  }
+
+  viewer.addEventListener('position-updated', e => { show(e.position); clampView(); });
+  viewer.addEventListener('zoom-updated', () => { clampView(); placeDot(); });
+  viewer.addEventListener('ready', () => { show(viewer.getPosition()); clampView(); });
+</script>
+</body>
+</html>
