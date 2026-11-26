@@ -218,7 +218,20 @@
     for (const id of ids) { const op = document.createElement('option'); op.value = id; op.textContent = nameOf(id); op.title = id; op.selected = id === cur; sel.appendChild(op); }
   }
 
-  function open(id) {
+  // Same arrival rules as scene-viewer.html: explicit arrival, then stairs, then keep the compass bearing.
+  function arrivalYaw(src, o, dst) {
+    if (o.arrival && o.arrival.yaw != null) return o.arrival.yaw;
+    if (o.variant === 'stairs') {
+      const back = ((S[dst].sc && S[dst].sc.objects) || []).find(x => (x.actions || []).some(a => a.type === 'goto' && a.scene === src));
+      return back ? wrap(back.location.yaw + 180) : 0;
+    }
+    const a = S[src].desc && S[src].desc.orientation, b = S[dst].desc && S[dst].desc.orientation;
+    if (a && b && a.bearingOfCenter != null && b.bearingOfCenter != null && a.reference === b.reference && a.reference !== 'unknown')
+      return wrap(a.bearingOfCenter + o.location.yaw - b.bearingOfCenter);
+    return 0;
+  }
+
+  function open(id, yaw) {
     cur = id; picked = null; movingIdx = null; if (arrivalFor && id !== arrivalFor.target) arrivalFor = null; $('picked').textContent = 'click the panorama to pick a spot';
     const d = S[id] && S[id].desc;
     const o = d && d.orientation;
@@ -228,13 +241,13 @@
     setLabel();
     const url = d.representations[0].url;
     if (!viewer) {
-      viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30, plugins: [[MarkersPlugin, {}]] });
+      viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30, defaultYaw: (yaw || 0) + 'deg', plugins: [[MarkersPlugin, {}]] });
       viewer.addEventListener('ready', () => { viewerReady = true; if (pendingDraw) pendingDraw(); }, { once: true });
       viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
         if (!$('hophs').checked || movingIdx != null || arrivalFor) return;
         const o = S[cur].sc && S[cur].sc.objects[+marker.id.slice(1)];
         const g = o && (o.actions || []).find(a => a.type === 'goto');
-        if (g && S[g.scene]) open(g.scene);
+        if (g && S[g.scene]) open(g.scene, arrivalYaw(cur, o, g.scene));
       });
       viewer.addEventListener('click', e => {
         picked = { yaw: wrap(deg(e.data.yaw)), pitch: deg(e.data.pitch) };
@@ -253,7 +266,7 @@
           movingIdx = null; touchScene();
         }
       });
-    } else viewer.setPanorama(url);
+    } else viewer.setPanorama(url, yaw != null ? { position: { yaw: yaw + 'deg', pitch: '0deg' } } : undefined);
     drawHotspots();
   }
 
