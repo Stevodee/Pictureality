@@ -75,7 +75,8 @@
     <button id="load">Load</button>
     <span class="dim">|</span>
     repo <input id="owner" size="9" value="Stevodee"> / <input id="repo" size="10" value="Pictureality">
-    token <input id="token" type="password" size="14" placeholder="only needed to save"></span>
+    token <input id="token" type="password" size="14" placeholder="only needed to save">
+    <select id="source"><option value="github">read from GitHub</option><option value="local">read from this server</option></select></span>
     <span class="mobonly nav"><button id="mprev" class="sec">&#9664;</button><select id="pano"></select><button id="mnext" class="sec">&#9654;</button></span>
     <button id="save" disabled>Save</button>
     <span id="status" class="dim"></span>
@@ -114,7 +115,9 @@
   import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 
   const $ = id => document.getElementById(id);
-  const J = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
+  const srcUrl = u => $('source').value === 'github'
+    ? `https://raw.githubusercontent.com/${$('owner').value.trim()}/${$('repo').value.trim()}/main/${u}?cb=${Date.now()}` : u;
+  const J = async u => { const r = await fetch(srcUrl(u), { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
   const wrap = d => ((d + 180) % 360 + 360) % 360 - 180;
   const norm = d => ((d % 360) + 360) % 360;
   const deg = r => r * 180 / Math.PI;
@@ -364,7 +367,7 @@
         done++; status(`saved ${done}…`);
       } catch (e) { status(`${id}: save failed: ${e.message}`, true); renderList(); return; }
     }
-    renderList(); status(`saved ${done} file(s)`);
+    renderList(); status(`saved ${done} file(s) to GitHub (your local folder is unchanged)`);
   }
 
   // ---------- wiring ----------
