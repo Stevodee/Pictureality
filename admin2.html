@@ -32,6 +32,29 @@
   .hs { width:26px; height:26px; border-radius:50%; background:rgba(217,138,61,.92); border:3px solid #000; box-shadow:0 0 0 2px #fff; }
   .f button { padding:2px 7px; font-size:11px; margin-left:4px; }
   .row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+  .mobonly { display:none; }
+  #sheethandle { display:none; }
+  @media (max-width: 800px) {
+    #app { display:flex; flex-direction:column; height:100dvh; }
+    header { gap:6px; padding:6px 8px; }
+    header .title { display:none; }
+    .mobonly { display:inline-flex; gap:4px; align-items:center; }
+    .nav { flex:1; min-width:0; } .nav select { flex:1; min-width:0; }
+    .adv { display:none; flex-basis:100%; flex-wrap:wrap; gap:6px; align-items:center; }
+    header.showadv .adv { display:flex; }
+    #status { flex-basis:100%; font-size:11px; }
+    #list { display:none; }
+    #viewerwrap { flex:1; min-height:0; }
+    #side { position:fixed; left:0; right:0; bottom:0; z-index:20; max-height:58dvh; overflow:auto; border-left:0;
+            border-top:1px solid var(--line); transform:translateY(calc(100% - 44px)); transition:transform .2s; padding-top:0; }
+    #side.open { transform:none; }
+    #sheethandle { display:block; position:sticky; top:0; z-index:2; height:44px; margin:0 -12px; padding:13px 12px;
+                   background:var(--panel); border-bottom:1px solid var(--line); cursor:pointer;
+                   font:12px ui-monospace,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    input, select, button { font-size:16px; min-height:38px; }
+    .f { padding:9px 0; }
+    .psv-navbar { bottom:48px !important; }
+  }
 </style>
 <script type="importmap">
 { "imports": {
@@ -44,18 +67,21 @@
 <body>
 <div id="app">
   <header>
-    <b>Pictureality admin</b>
-    tour <input id="tour" size="16" placeholder="campell-house">
+    <button id="menubtn" class="sec mobonly">&#9776;</button>
+    <b class="title">Pictureality admin</b>
+    <span class="adv">tour <input id="tour" size="16" placeholder="campell-house">
     <button id="load">Load</button>
     <span class="dim">|</span>
     repo <input id="owner" size="9" value="Stevodee"> / <input id="repo" size="10" value="Pictureality">
-    token <input id="token" type="password" size="14" placeholder="only needed to save">
+    token <input id="token" type="password" size="14" placeholder="only needed to save"></span>
+    <span class="mobonly nav"><button id="mprev" class="sec">&#9664;</button><select id="pano"></select><button id="mnext" class="sec">&#9654;</button></span>
     <button id="save" disabled>Save</button>
     <span id="status" class="dim"></span>
   </header>
   <div id="list"></div>
   <div id="viewerwrap"><div id="viewer"></div><div id="msg">load a tour</div></div>
   <div id="side">
+    <div id="sheethandle"></div>
     <h3>Orient</h3>
     <div id="cur" class="dim">no pano open</div>
     <label>Clicked spot: bearing (0–360°)</label>
@@ -92,6 +118,7 @@
 
   let TOKEN = '';          // session only: never written to disk, storage or cookies
   let S = {}, ids = [], tour = '', cur = null, picked = null, viewer = null, movingIdx = null;
+  let viewerReady = false, pendingDraw = null;
   const dirtyScenes = new Set();
   const dirty = new Set();
 
@@ -174,6 +201,8 @@
       const tag = document.createElement('span'); tag.className = b == null ? 'nb' : 'b'; tag.textContent = b == null ? 'no bearing' : b.toFixed(0) + '°';
       d.append(name, tag); d.onclick = () => open(id); el.appendChild(d);
     }
+    const sel = $('pano'); sel.innerHTML = '';
+    for (const id of ids) { const op = document.createElement('option'); op.value = id; op.textContent = id.replace(/-pureshot.*$/, ''); op.selected = id === cur; sel.appendChild(op); }
   }
 
   function open(id) {
@@ -187,9 +216,11 @@
     const url = d.representations[0].url;
     if (!viewer) {
       viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30, plugins: [[MarkersPlugin, {}]] });
+      viewer.addEventListener('ready', () => { viewerReady = true; if (pendingDraw) pendingDraw(); }, { once: true });
       viewer.addEventListener('click', e => {
         picked = { yaw: wrap(deg(e.data.yaw)), pitch: deg(e.data.pitch) };
         $('picked').textContent = `picked yaw ${picked.yaw.toFixed(1)}°, pitch ${picked.pitch.toFixed(1)}°`;
+        if (matchMedia('(max-width: 800px)').matches && movingIdx == null) $('side').classList.add('open');
         if (movingIdx != null && S[cur].sc && S[cur].sc.objects[movingIdx]) {
           S[cur].sc.objects[movingIdx].location = { yaw: +picked.yaw.toFixed(1), pitch: +picked.pitch.toFixed(1) };
           movingIdx = null; touchScene();
@@ -219,8 +250,11 @@
     const pl = viewer.getPlugin(MarkersPlugin);
     const list = hs().map(({ o, i }) => ({ id: 'h' + i, position: { yaw: o.location.yaw + 'deg', pitch: o.location.pitch + 'deg' },
       html: '<div class="hs"></div>', size: { width: 26, height: 26 }, tooltip: o.label }));
-    const run = () => pl.setMarkers(list);
-    viewer.state.ready ? run() : viewer.addEventListener('ready', run, { once: true });
+    const run = () => {
+      try { pl.setMarkers(list); $('msg').textContent = `${cur} · ${list.length} hotspot(s)`; }
+      catch (e) { console.error('markers failed', e); status('markers failed: ' + e.message, true); }
+    };
+    if (viewerReady) run(); else pendingDraw = run;
   }
   function touchScene() {
     dirtyScenes.add(cur); drawHotspots(); renderHotspots(); validate();
@@ -235,7 +269,7 @@
       const d = document.createElement('div'); d.className = 'f';
       d.append(`→ ${short(g.scene)} · ${o.variant || 'none'} · ${o.location.yaw.toFixed(0)}°`);
       const mv = document.createElement('button'); mv.className = 'sec'; mv.textContent = movingIdx === i ? 'click pano…' : 'Move';
-      mv.onclick = () => { movingIdx = movingIdx === i ? null : i; renderHotspots(); };
+      mv.onclick = () => { movingIdx = movingIdx === i ? null : i; $('side').classList.remove('open'); renderHotspots(); };
       const del = document.createElement('button'); del.className = 'sec'; del.textContent = 'Delete';
       del.onclick = () => { S[cur].sc.objects.splice(i, 1); movingIdx = null; touchScene(); };
       d.append(mv, del); box.appendChild(d);
@@ -291,7 +325,17 @@
   document.addEventListener('input', () => { $('save').disabled = dirty.size === 0 && dirtyScenes.size === 0; });
   const q = new URLSearchParams(location.search).get('t');
   if (q) { $('tour').value = q; $('load').click(); }
-  setInterval(() => { $('save').disabled = dirty.size === 0 && dirtyScenes.size === 0; }, 500);
+  $('menubtn').onclick = () => document.querySelector('header').classList.toggle('showadv');
+  $('sheethandle').onclick = () => $('side').classList.toggle('open');
+  $('pano').onchange = () => open($('pano').value);
+  $('mprev').onclick = () => $('prev').click();
+  $('mnext').onclick = () => $('next').click();
+  if (!q) document.querySelector('header').classList.add('showadv');
+  setInterval(() => {
+    const n = dirty.size + dirtyScenes.size;
+    $('save').disabled = n === 0;
+    $('sheethandle').textContent = (cur ? short(cur) : 'no pano') + (picked ? ' · spot picked' : ' · tap the pano') + (n ? ` · ${n} unsaved` : '') + '   ▲';
+  }, 500);
 </script>
 </body>
 </html>
