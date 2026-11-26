@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pictureality admin (PSV)</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5.7.1/index.css">
 <style>
   :root { --bg:#0b0d10; --panel:#14171c; --line:#262b33; --text:#e8e6df; --dim:#8b9099; --accent:#d98a3d; --bad:#e0705a; --good:#5a9e6f; }
   * { box-sizing: border-box; }
@@ -28,12 +29,15 @@
   label { display:block; font-size:11px; color:var(--dim); margin:6px 0 2px; }
   .f { padding:4px 0; border-bottom:1px solid var(--line); font:11px ui-monospace,monospace; cursor:pointer; }
   .ok { color:var(--good); } .dim { color:var(--dim); }
+  .hs { width:26px; height:26px; border-radius:50%; background:rgba(217,138,61,.92); border:3px solid #000; box-shadow:0 0 0 2px #fff; }
+  .f button { padding:2px 7px; font-size:11px; margin-left:4px; }
   .row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
 </style>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.module.js"
+  "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.module.js",
+  "@photo-sphere-viewer/markers-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5.7.1/index.module.js"
 } }
 </script>
 </head>
@@ -62,6 +66,13 @@
     <select id="src"><option value="manual-landmark">map / landmark</option><option value="manual-compass">compass on site</option></select>
     <div class="row"><button id="apply">Apply</button><button class="sec" id="prev">&#9664; Prev</button><button class="sec" id="next">Next &#9654;</button></div>
     <div id="picked" class="dim" style="margin-top:6px">click the panorama to pick a spot</div>
+    <h3>Hotspots</h3>
+    <div id="hslist"></div>
+    <label>Add a hotspot at the clicked spot</label>
+    <select id="hstarget"></select>
+    <select id="hsvariant"><option>door</option><option>stairs</option></select>
+    <div class="row"><button id="hsadd">Add hotspot</button></div>
+    <div class="dim" style="margin-top:4px">Move: press Move, then click the new spot.</div>
     <h3>Validate</h3>
     <label>Start scene (reachability)</label>
     <input id="start" style="width:100%" placeholder="blank = first in tour">
@@ -71,6 +82,7 @@
 
 <script type="module">
   import { Viewer } from '@photo-sphere-viewer/core';
+  import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
 
   const $ = id => document.getElementById(id);
   const J = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
@@ -79,7 +91,8 @@
   const deg = r => r * 180 / Math.PI;
 
   let TOKEN = '';          // session only: never written to disk, storage or cookies
-  let S = {}, ids = [], tour = '', cur = null, picked = null, viewer = null;
+  let S = {}, ids = [], tour = '', cur = null, picked = null, viewer = null, movingIdx = null;
+  const dirtyScenes = new Set();
   const dirty = new Set();
 
   const status = (m, bad) => { $('status').textContent = m; $('status').style.color = bad ? 'var(--bad)' : 'var(--dim)'; };
@@ -88,7 +101,7 @@
   async function loadTour(t) {
     status('loading…');
     try {
-      ids = (await J(`tours/${t}.json`)).scenes; tour = t; S = {}; dirty.clear();
+      ids = (await J(`tours/${t}.json`)).scenes; tour = t; S = {}; dirty.clear(); dirtyScenes.clear();
       for (const id of ids) {
         let sc = null, desc = null;
         try { sc = await J(`scenes/${id}.json`); desc = await J(sc.media[0].descriptor); } catch (e) {}
@@ -157,28 +170,33 @@
     for (const id of ids) {
       const d = document.createElement('div'); if (id === cur) d.className = 'on';
       const b = S[id].desc && S[id].desc.orientation && S[id].desc.orientation.bearingOfCenter;
-      const name = document.createElement('span'); name.textContent = (dirty.has(id) ? '● ' : '') + id.replace(/-pureshot.*$/, '');
+      const name = document.createElement('span'); name.textContent = (dirty.has(id) || dirtyScenes.has(id) ? '● ' : '') + id.replace(/-pureshot.*$/, '');
       const tag = document.createElement('span'); tag.className = b == null ? 'nb' : 'b'; tag.textContent = b == null ? 'no bearing' : b.toFixed(0) + '°';
       d.append(name, tag); d.onclick = () => open(id); el.appendChild(d);
     }
   }
 
   function open(id) {
-    cur = id; picked = null; $('picked').textContent = 'click the panorama to pick a spot';
+    cur = id; picked = null; movingIdx = null; $('picked').textContent = 'click the panorama to pick a spot';
     const d = S[id] && S[id].desc;
     const o = d && d.orientation;
     $('cur').textContent = id + (o && o.bearingOfCenter != null ? `  ·  center ${o.bearingOfCenter.toFixed(1)}° (${o.reference}, ${o.source})` : '  ·  no bearing');
-    renderList();
+    renderList(); renderHotspots();
     if (!d || d.coverage !== 'full') { $('msg').textContent = d ? 'partial pano: use orient-viewer.html' : 'descriptor missing'; return; }
     $('msg').textContent = id;
     const url = d.representations[0].url;
     if (!viewer) {
-      viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30 });
+      viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30, plugins: [[MarkersPlugin, {}]] });
       viewer.addEventListener('click', e => {
         picked = { yaw: wrap(deg(e.data.yaw)), pitch: deg(e.data.pitch) };
         $('picked').textContent = `picked yaw ${picked.yaw.toFixed(1)}°, pitch ${picked.pitch.toFixed(1)}°`;
+        if (movingIdx != null && S[cur].sc && S[cur].sc.objects[movingIdx]) {
+          S[cur].sc.objects[movingIdx].location = { yaw: +picked.yaw.toFixed(1), pitch: +picked.pitch.toFixed(1) };
+          movingIdx = null; touchScene();
+        }
       });
     } else viewer.setPanorama(url);
+    drawHotspots();
   }
 
   function apply() {
@@ -193,6 +211,47 @@
     open(cur); validate();
   }
 
+  // ---------- hotspots ----------
+  const hs = () => ((S[cur] && S[cur].sc && S[cur].sc.objects) || []).map((o, i) => ({ o, i })).filter(x => (x.o.actions || []).some(a => a.type === 'goto'));
+  const short = id => id.replace(/-pureshot.*$/, '');
+  function drawHotspots() {
+    if (!viewer) return;
+    const pl = viewer.getPlugin(MarkersPlugin);
+    const list = hs().map(({ o, i }) => ({ id: 'h' + i, position: { yaw: o.location.yaw + 'deg', pitch: o.location.pitch + 'deg' },
+      html: '<div class="hs"></div>', size: { width: 26, height: 26 }, tooltip: o.label }));
+    const run = () => pl.setMarkers(list);
+    viewer.state.ready ? run() : viewer.addEventListener('ready', run, { once: true });
+  }
+  function touchScene() {
+    dirtyScenes.add(cur); drawHotspots(); renderHotspots(); validate();
+    status(`${cur}: hotspots changed (not saved yet)`);
+  }
+  function renderHotspots() {
+    const box = $('hslist'); box.innerHTML = '';
+    const sel = $('hstarget'); sel.innerHTML = '';
+    for (const id of ids) if (id !== cur) { const op = document.createElement('option'); op.value = id; op.textContent = short(id); sel.appendChild(op); }
+    for (const { o, i } of hs()) {
+      const g = o.actions.find(a => a.type === 'goto');
+      const d = document.createElement('div'); d.className = 'f';
+      d.append(`→ ${short(g.scene)} · ${o.variant || 'none'} · ${o.location.yaw.toFixed(0)}°`);
+      const mv = document.createElement('button'); mv.className = 'sec'; mv.textContent = movingIdx === i ? 'click pano…' : 'Move';
+      mv.onclick = () => { movingIdx = movingIdx === i ? null : i; renderHotspots(); };
+      const del = document.createElement('button'); del.className = 'sec'; del.textContent = 'Delete';
+      del.onclick = () => { S[cur].sc.objects.splice(i, 1); movingIdx = null; touchScene(); };
+      d.append(mv, del); box.appendChild(d);
+    }
+  }
+  function addHotspot() {
+    if (!S[cur] || !S[cur].sc) return status('open a pano first', true);
+    if (!picked) return status('click the panorama where the hotspot goes', true);
+    const t = $('hstarget').value; if (!t) return status('no target scene', true);
+    const objs = S[cur].sc.objects = S[cur].sc.objects || [];
+    let id = 'to-' + t, n = 1; while (objs.some(o => o.id === id)) id = `to-${t}-${++n}`;
+    objs.push({ id, label: (S[t].sc && S[t].sc.title) || t, type: 'portal', variant: $('hsvariant').value,
+      location: { yaw: +picked.yaw.toFixed(1), pitch: +picked.pitch.toFixed(1) }, actions: [{ type: 'goto', scene: t }] });
+    touchScene();
+  }
+
   // ---------- save (GitHub contents API, same method as admin.html) ----------
   const b64 = s => btoa(unescape(encodeURIComponent(s)));
   async function save() {
@@ -200,34 +259,39 @@
     if (!TOKEN) { status('paste a token first (kept in memory only)', true); return; }
     const base = `https://api.github.com/repos/${$('owner').value.trim()}/${$('repo').value.trim()}/contents/`;
     const H = { Authorization: 'token ' + TOKEN, Accept: 'application/vnd.github+json' };
+    const put = async (path, obj, msg) => {
+      const g = await fetch(base + path, { headers: H });
+      if (!g.ok) throw new Error('read ' + g.status + (g.status === 401 || g.status === 403 ? ' (token rejected)' : ''));
+      const sha = (await g.json()).sha;
+      const p = await fetch(base + path, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, content: b64(JSON.stringify(obj, null, 2)), sha, branch: 'main' }) });
+      if (!p.ok) throw new Error((await p.json()).message || p.status);
+    };
+    const jobs = [...[...dirty].map(id => ['d', id]), ...[...dirtyScenes].map(id => ['s', id])];
     let done = 0;
-    for (const id of [...dirty]) {
-      const { desc, path } = S[id];
+    for (const [k, id] of jobs) {
       try {
-        const g = await fetch(base + path, { headers: H });
-        if (!g.ok) throw new Error('read ' + g.status + (g.status === 401 || g.status === 403 ? ' (token rejected)' : ''));
-        const sha = (await g.json()).sha;
-        const p = await fetch(base + path, { method: 'PUT', headers: { ...H, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: `Set orientation: ${id}`, content: b64(JSON.stringify(desc, null, 2)), sha, branch: 'main' }) });
-        if (!p.ok) throw new Error((await p.json()).message || p.status);
-        dirty.delete(id); done++; status(`saved ${done}…`);
+        if (k === 'd') { await put(S[id].path, S[id].desc, `Set orientation: ${id}`); dirty.delete(id); }
+        else { await put(`scenes/${id}.json`, S[id].sc, `Edit hotspots: ${id}`); dirtyScenes.delete(id); }
+        done++; status(`saved ${done}…`);
       } catch (e) { status(`${id}: save failed: ${e.message}`, true); renderList(); return; }
     }
-    renderList(); $('save').disabled = true; status(`saved ${done} descriptor(s)`);
+    renderList(); status(`saved ${done} file(s)`);
   }
 
   // ---------- wiring ----------
   $('load').onclick = () => $('tour').value.trim() && loadTour($('tour').value.trim()).then(validate);
   $('apply').onclick = apply;
+  $('hsadd').onclick = addHotspot;
   $('save').onclick = save;
   $('start').onchange = validate;
   $('prev').onclick = () => { const i = ids.indexOf(cur); if (i > 0) open(ids[i - 1]); };
   $('next').onclick = () => { const i = ids.indexOf(cur); if (i >= 0 && i < ids.length - 1) open(ids[i + 1]); };
   document.querySelectorAll('[data-b]').forEach(b => b.onclick = () => { $('bearing').value = b.dataset.b; });
-  document.addEventListener('input', () => { $('save').disabled = dirty.size === 0; });
+  document.addEventListener('input', () => { $('save').disabled = dirty.size === 0 && dirtyScenes.size === 0; });
   const q = new URLSearchParams(location.search).get('t');
   if (q) { $('tour').value = q; $('load').click(); }
-  setInterval(() => { $('save').disabled = dirty.size === 0; }, 500);
+  setInterval(() => { $('save').disabled = dirty.size === 0 && dirtyScenes.size === 0; }, 500);
 </script>
 </body>
 </html>
