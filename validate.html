@@ -103,7 +103,7 @@
     if (x.variant === 'stairs' || y.variant === 'stairs') continue;
     checked++;
     const r = wrap(bc[b] - bc[a] - wrap(x.yaw - y.yaw - 180));
-    const lim = (x.variant === 'door' || y.variant === 'door') ? 45 : 15;
+    const lim = (x.variant === 'door' || y.variant === 'room' || y.variant === 'door' || x.variant === 'room') ? 45 : 15;
     if (Math.abs(r) > 150) add('error', `${a} ↔ ${b}: residual ${r.toFixed(0)}°, bearing probably flipped 180°`, a);
     else if (Math.abs(r) > lim) add('warn', `${a} ↔ ${b}: residual ${r.toFixed(1)}° (limit ${lim}°)`, a);
   }

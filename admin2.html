@@ -19,17 +19,18 @@
   #list { overflow:auto; background:var(--panel); border-right:1px solid var(--line); }
   #list div { padding:6px 10px; border-bottom:1px solid var(--line); cursor:pointer; font:12px ui-monospace,monospace; display:flex; justify-content:space-between; gap:6px; }
   #list div.on { background:#222831; }
+  #list div span:first-child { font:13px -apple-system,BlinkMacSystemFont,sans-serif; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   #list .nb { color:var(--bad); } #list .b { color:var(--dim); }
   #viewerwrap { position:relative; min-height:0; }
   #viewer { position:absolute; inset:0; }
-  #msg { position:absolute; top:10px; left:10px; z-index:5; background:rgba(0,0,0,.72); padding:6px 10px; border-radius:6px; font:12px ui-monospace,monospace; pointer-events:none; }
+  #msg { position:absolute; top:10px; left:50%; transform:translateX(-50%); z-index:5; max-width:70%; text-align:center; background:rgba(0,0,0,.72); padding:8px 14px; border-radius:8px; font:600 15px/1.35 -apple-system,BlinkMacSystemFont,sans-serif; cursor:pointer; }
   #side { overflow:auto; background:var(--panel); border-left:1px solid var(--line); padding:10px 12px; }
   h3 { font:600 11px ui-monospace,monospace; letter-spacing:.06em; text-transform:uppercase; color:var(--dim); margin:14px 0 6px; }
   h3.error { color:var(--bad); } h3.warn { color:var(--accent); }
   label { display:block; font-size:11px; color:var(--dim); margin:6px 0 2px; }
   .f { padding:4px 0; border-bottom:1px solid var(--line); font:11px ui-monospace,monospace; cursor:pointer; }
   .ok { color:var(--good); } .dim { color:var(--dim); }
-  .hs { width:26px; height:26px; border-radius:50%; background:rgba(217,138,61,.92); border:3px solid #000; box-shadow:0 0 0 2px #fff; }
+  .hs { width:32px; height:32px; border-radius:50%; background:rgba(217,138,61,.92); border:3px solid #000; box-shadow:0 0 0 2px #fff; }
   .f button { padding:2px 7px; font-size:11px; margin-left:4px; }
   .row { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
   .mobonly { display:none; }
@@ -55,6 +56,7 @@
     .f { padding:9px 0; }
     .psv-navbar { bottom:48px !important; }
   }
+  .hs svg { width:100%; height:100%; padding:6px; box-sizing:border-box; fill:none; stroke:#1a1206; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
 </style>
 <script type="importmap">
 { "imports": {
@@ -93,10 +95,11 @@
     <div class="row"><button id="apply">Apply</button><button class="sec" id="prev">&#9664; Prev</button><button class="sec" id="next">Next &#9654;</button></div>
     <div id="picked" class="dim" style="margin-top:6px">click the panorama to pick a spot</div>
     <h3>Hotspots</h3>
+    <label><input type="checkbox" id="hophs" checked> tap a marker to hop to its pano</label>
     <div id="hslist"></div>
     <label>Add a hotspot at the clicked spot</label>
     <select id="hstarget"></select>
-    <select id="hsvariant"><option>door</option><option>stairs</option></select>
+    <select id="hsvariant"><option>door</option><option>stairs</option><option>ground</option><option>room</option></select>
     <div class="row"><button id="hsadd">Add hotspot</button></div>
     <div class="dim" style="margin-top:4px">Move: press Move, then click the new spot.</div>
     <h3>Validate</h3>
@@ -115,10 +118,20 @@
   const wrap = d => ((d + 180) % 360 + 360) % 360 - 180;
   const norm = d => ((d % 360) + 360) % 360;
   const deg = r => r * 180 / Math.PI;
+  // Marker icons: inline SVG per hotspot variant (no hosted images). Re-created; the old Panolens canvas icons were not available.
+  const ICONS = {
+    door: '<svg viewBox="0 0 24 24"><path d="M7 21V4h10v17M5 21h14"/><circle cx="14.5" cy="12.5" r="1.2" fill="#1a1206" stroke="none"/></svg>',
+    stairs: '<svg viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4V8h4"/></svg>',
+    info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="1.4" fill="#1a1206" stroke="none"/><path d="M12 11v7"/></svg>'
+  };
+  ICONS.ground = '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="8" ry="4"/><ellipse cx="12" cy="14" rx="3" ry="1.5" fill="#1a1206" stroke="none"/></svg>';
+  ICONS.room = '<svg viewBox="0 0 24 24"><path d="M9 20H4V5h16v15h-5"/><circle cx="12" cy="12" r="1.6" fill="#1a1206" stroke="none"/></svg>';
+  const markerHTML = v => `<div class="hs">${ICONS[v] || ICONS.door}</div>`;
+
 
   let TOKEN = '';          // session only: never written to disk, storage or cookies
   let S = {}, ids = [], tour = '', cur = null, picked = null, viewer = null, movingIdx = null;
-  let viewerReady = false, pendingDraw = null;
+  let viewerReady = false, pendingDraw = null, arrivalFor = null;
   const dirtyScenes = new Set();
   const dirty = new Set();
 
@@ -176,7 +189,7 @@
       if (!x || !y || bc[a] == null || bc[b] == null || x.v === 'stairs' || y.v === 'stairs') continue;
       checked++;
       const r = wrap(bc[b] - bc[a] - wrap(x.yaw - y.yaw - 180));
-      const lim = (x.v === 'door' || y.v === 'door') ? 45 : 15;
+      const lim = (x.v === 'door' || y.v === 'door' || x.v === 'room' || y.v === 'room') ? 45 : 15;
       if (Math.abs(r) > 150) add('error', `${a} ↔ ${b}: ${r.toFixed(0)}° residual, bearing probably flipped`, a);
       else if (Math.abs(r) > lim) add('warn', `${a} ↔ ${b}: ${r.toFixed(1)}° (limit ${lim}°)`, a);
     }
@@ -197,28 +210,42 @@
     for (const id of ids) {
       const d = document.createElement('div'); if (id === cur) d.className = 'on';
       const b = S[id].desc && S[id].desc.orientation && S[id].desc.orientation.bearingOfCenter;
-      const name = document.createElement('span'); name.textContent = (dirty.has(id) || dirtyScenes.has(id) ? '● ' : '') + id.replace(/-pureshot.*$/, '');
+      const name = document.createElement('span'); name.textContent = (dirty.has(id) || dirtyScenes.has(id) ? '● ' : '') + nameOf(id); d.title = id;
       const tag = document.createElement('span'); tag.className = b == null ? 'nb' : 'b'; tag.textContent = b == null ? 'no bearing' : b.toFixed(0) + '°';
       d.append(name, tag); d.onclick = () => open(id); el.appendChild(d);
     }
     const sel = $('pano'); sel.innerHTML = '';
-    for (const id of ids) { const op = document.createElement('option'); op.value = id; op.textContent = id.replace(/-pureshot.*$/, ''); op.selected = id === cur; sel.appendChild(op); }
+    for (const id of ids) { const op = document.createElement('option'); op.value = id; op.textContent = nameOf(id); op.title = id; op.selected = id === cur; sel.appendChild(op); }
   }
 
   function open(id) {
-    cur = id; picked = null; movingIdx = null; $('picked').textContent = 'click the panorama to pick a spot';
+    cur = id; picked = null; movingIdx = null; if (arrivalFor && id !== arrivalFor.target) arrivalFor = null; $('picked').textContent = 'click the panorama to pick a spot';
     const d = S[id] && S[id].desc;
     const o = d && d.orientation;
-    $('cur').textContent = id + (o && o.bearingOfCenter != null ? `  ·  center ${o.bearingOfCenter.toFixed(1)}° (${o.reference}, ${o.source})` : '  ·  no bearing');
+    $('cur').title = id; $('cur').textContent = nameOf(id) + (o && o.bearingOfCenter != null ? `  ·  center ${o.bearingOfCenter.toFixed(1)}° (${o.reference}, ${o.source})` : '  ·  no bearing');
     renderList(); renderHotspots();
     if (!d || d.coverage !== 'full') { $('msg').textContent = d ? 'partial pano: use orient-viewer.html' : 'descriptor missing'; return; }
-    $('msg').textContent = id;
+    setLabel();
     const url = d.representations[0].url;
     if (!viewer) {
       viewer = new Viewer({ container: $('viewer'), panorama: url, navbar: ['zoom', 'fullscreen'], defaultZoomLvl: 30, plugins: [[MarkersPlugin, {}]] });
       viewer.addEventListener('ready', () => { viewerReady = true; if (pendingDraw) pendingDraw(); }, { once: true });
+      viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
+        if (!$('hophs').checked || movingIdx != null || arrivalFor) return;
+        const o = S[cur].sc && S[cur].sc.objects[+marker.id.slice(1)];
+        const g = o && (o.actions || []).find(a => a.type === 'goto');
+        if (g && S[g.scene]) open(g.scene);
+      });
       viewer.addEventListener('click', e => {
         picked = { yaw: wrap(deg(e.data.yaw)), pitch: deg(e.data.pitch) };
+        if (arrivalFor) {
+          const { src, idx } = arrivalFor; arrivalFor = null;
+          const o = S[src].sc.objects[idx]; const tgt = cur;
+          o.arrival = { yaw: +picked.yaw.toFixed(1) }; dirtyScenes.add(src);
+          open(src); validate();
+          status(`arrival set for ${nameOf(src)} → ${nameOf(tgt)}: face yaw ${o.arrival.yaw}° (not saved yet)`);
+          return;
+        }
         $('picked').textContent = `picked yaw ${picked.yaw.toFixed(1)}°, pitch ${picked.pitch.toFixed(1)}°`;
         if (matchMedia('(max-width: 800px)').matches && movingIdx == null) $('side').classList.add('open');
         if (movingIdx != null && S[cur].sc && S[cur].sc.objects[movingIdx]) {
@@ -245,13 +272,21 @@
   // ---------- hotspots ----------
   const hs = () => ((S[cur] && S[cur].sc && S[cur].sc.objects) || []).map((o, i) => ({ o, i })).filter(x => (x.o.actions || []).some(a => a.type === 'goto'));
   const short = id => id.replace(/-pureshot.*$/, '');
+  // description if one exists, else the scene title, else the short id. The file id stays available on hover or by tapping the label.
+  const nameOf = id => {
+    const x = S[id] || {};
+    const d = (x.sc && x.sc.description) || (x.desc && x.desc.description);
+    return (d && String(d).trim()) || (x.sc && x.sc.title) || short(id);
+  };
+  let showId = false;
+  function setLabel() { if (!cur) return; const el = $('msg'); el.textContent = showId ? cur : nameOf(cur); el.title = cur; }
   function drawHotspots() {
     if (!viewer) return;
     const pl = viewer.getPlugin(MarkersPlugin);
     const list = hs().map(({ o, i }) => ({ id: 'h' + i, position: { yaw: o.location.yaw + 'deg', pitch: o.location.pitch + 'deg' },
-      html: '<div class="hs"></div>', size: { width: 26, height: 26 }, tooltip: o.label }));
+      html: markerHTML(o.variant), size: { width: 32, height: 32 }, tooltip: nameOf((o.actions.find(a => a.type === 'goto') || {}).scene) }));
     const run = () => {
-      try { pl.setMarkers(list); $('msg').textContent = `${cur} · ${list.length} hotspot(s)`; }
+      try { pl.setMarkers(list); setLabel(); }
       catch (e) { console.error('markers failed', e); status('markers failed: ' + e.message, true); }
     };
     if (viewerReady) run(); else pendingDraw = run;
@@ -263,16 +298,22 @@
   function renderHotspots() {
     const box = $('hslist'); box.innerHTML = '';
     const sel = $('hstarget'); sel.innerHTML = '';
-    for (const id of ids) if (id !== cur) { const op = document.createElement('option'); op.value = id; op.textContent = short(id); sel.appendChild(op); }
+    for (const id of ids) if (id !== cur) { const op = document.createElement('option'); op.value = id; op.textContent = nameOf(id); op.title = id; sel.appendChild(op); }
     for (const { o, i } of hs()) {
       const g = o.actions.find(a => a.type === 'goto');
       const d = document.createElement('div'); d.className = 'f';
-      d.append(`→ ${short(g.scene)} · ${o.variant || 'none'} · ${o.location.yaw.toFixed(0)}°`);
+      d.title = g.scene; d.append(`→ ${nameOf(g.scene)} · ${o.variant || 'none'} · ${o.location.yaw.toFixed(0)}°`);
       const mv = document.createElement('button'); mv.className = 'sec'; mv.textContent = movingIdx === i ? 'click pano…' : 'Move';
       mv.onclick = () => { movingIdx = movingIdx === i ? null : i; $('side').classList.remove('open'); renderHotspots(); };
       const del = document.createElement('button'); del.className = 'sec'; del.textContent = 'Delete';
       del.onclick = () => { S[cur].sc.objects.splice(i, 1); movingIdx = null; touchScene(); };
-      d.append(mv, del); box.appendChild(d);
+      const ar = document.createElement('button'); ar.className = 'sec'; ar.textContent = o.arrival ? 'Arrival ✓' : 'Arrival';
+      ar.title = 'Set which way you face on arriving';
+      ar.onclick = () => { arrivalFor = { src: cur, idx: i, target: g.scene }; $('side').classList.remove('open'); open(g.scene); status(`tap the direction you should face on arrival in ${nameOf(g.scene)}`); };
+      d.append(mv, ar);
+      if (o.arrival) { const cl = document.createElement('button'); cl.className = 'sec'; cl.textContent = '✕'; cl.title = 'Clear arrival';
+        cl.onclick = () => { delete o.arrival; touchScene(); }; d.append(cl); }
+      d.append(del); box.appendChild(d);
     }
   }
   function addHotspot() {
@@ -316,6 +357,7 @@
   // ---------- wiring ----------
   $('load').onclick = () => $('tour').value.trim() && loadTour($('tour').value.trim()).then(validate);
   $('apply').onclick = apply;
+  $('msg').onclick = () => { showId = !showId; setLabel(); };
   $('hsadd').onclick = addHotspot;
   $('save').onclick = save;
   $('start').onchange = validate;
@@ -334,7 +376,7 @@
   setInterval(() => {
     const n = dirty.size + dirtyScenes.size;
     $('save').disabled = n === 0;
-    $('sheethandle').textContent = (cur ? short(cur) : 'no pano') + (picked ? ' · spot picked' : ' · tap the pano') + (n ? ` · ${n} unsaved` : '') + '   ▲';
+    $('sheethandle').textContent = (cur ? nameOf(cur) : 'no pano') + (picked ? ' · spot picked' : ' · tap the pano') + (n ? ` · ${n} unsaved` : '') + '   ▲';
   }, 500);
 </script>
 </body>

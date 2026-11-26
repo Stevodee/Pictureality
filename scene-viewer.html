@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scene viewer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-tiles-adapter@5.7.1/index.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5.7.1/index.css">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; }
+  #viewer { width: 100%; height: 100%; }
+  .box { position: fixed; z-index: 9999; background: rgba(0,0,0,.72); color: #fff;
+         padding: 8px 12px; font: 13px/1.5 ui-monospace, monospace; border-radius: 6px; }
+  #hud { top: 10px; left: 10px; pointer-events: none; }
+  #menu { top: 10px; right: 10px; }
+  #menu a { color: #e8b36f; display: block; }
+  .hs { width: 36px; height: 36px; border-radius: 50%; background: rgba(232,179,111,.92);
+        border: 3px solid #000; box-shadow: 0 0 0 2px #fff; cursor: pointer; }
+  .hs svg { width:100%; height:100%; padding:6px; box-sizing:border-box; fill:none; stroke:#1a1206; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5.7.1/index.module.js",
+  "@photo-sphere-viewer/equirectangular-tiles-adapter": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-tiles-adapter@5.7.1/index.module.js",
+  "@photo-sphere-viewer/markers-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/markers-plugin@5.7.1/index.module.js"
+} }
+</script>
+</head>
+<body>
+<div id="viewer"></div>
+<div id="hud" class="box">loading…</div>
+<div id="menu" class="box" hidden></div>
+
+<script type="module">
+  import { Viewer } from '@photo-sphere-viewer/core';
+  import { EquirectangularTilesAdapter } from '@photo-sphere-viewer/equirectangular-tiles-adapter';
+  import { MarkersPlugin } from '@photo-sphere-viewer/markers-plugin';
+
+  // scene-viewer.html?s=img_3785[&t=partials-test]   (travel/ref are added by hops)
+  const q = new URLSearchParams(location.search);
+  const slug = q.get('s') || 'img_3785';
+  const tourId = q.get('t');
+  const travel = q.has('travel') ? parseFloat(q.get('travel')) : null;
+  const travelRef = q.get('ref');
+
+  // Marker icons: inline SVG per hotspot variant (no hosted images). Re-created; the old Panolens canvas icons were not available.
+  const ICONS = {
+    door: '<svg viewBox="0 0 24 24"><path d="M7 21V4h10v17M5 21h14"/><circle cx="14.5" cy="12.5" r="1.2" fill="#1a1206" stroke="none"/></svg>',
+    stairs: '<svg viewBox="0 0 24 24"><path d="M4 20h4v-4h4v-4h4V8h4"/></svg>',
+    info: '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="1.4" fill="#1a1206" stroke="none"/><path d="M12 11v7"/></svg>'
+  };
+  ICONS.ground = '<svg viewBox="0 0 24 24"><ellipse cx="12" cy="14" rx="8" ry="4"/><ellipse cx="12" cy="14" rx="3" ry="1.5" fill="#1a1206" stroke="none"/></svg>';
+  ICONS.room = '<svg viewBox="0 0 24 24"><path d="M9 20H4V5h16v15h-5"/><circle cx="12" cy="12" r="1.6" fill="#1a1206" stroke="none"/></svg>';
+  const markerHTML = v => `<div class="hs">${ICONS[v] || ICONS.door}</div>`;
+  const $ = id => document.getElementById(id);
+  const toDeg = r => r * 180 / Math.PI;
+  const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
+  const norm = d => ((d % 360) + 360) % 360;
+  const getJSON = async u => { const r = await fetch(u, { cache: 'no-store' }); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
+
+  const scene = await getJSON(`scenes/${slug}.json`);
+  const desc = await getJSON(scene.media[0].descriptor);
+  const full = desc.coverage === 'full';   // full 360: single image, no edge clamp
+  const t = desc.tiles, o = desc.orientation || {};
+  const bc = (o.bearingOfCenter != null) ? o.bearingOfCenter : null;
+
+  // Photo footprint on the virtual sphere (degrees from its center). Whole sphere if full.
+  const dpp = full ? 0 : 360 / t.width;
+  const halfYaw = full ? 180 : (t.stripInGrid.width / 2) * dpp;
+  const halfPitch = full ? 90 : (t.stripInGrid.height / 2) * dpp;
+  const { colMin, colMax, rowMin, rowMax } = full ? {} : t.populated;
+  const tileUrl = full ? null : (c, r) => (c >= colMin && c <= colMax && r >= rowMin && r <= rowMax)
+    ? t.tilePattern.replace('{col}', c).replace('{row}', r) : null;
+
+  // Arrival: keep the compass bearing you were travelling. Fall back to the photo center.
+  // Only usable when both scenes know their bearing in the same reference.
+  let startYaw = 0, arrival = 'default view';
+  const clampY = y => Math.max(-halfYaw, Math.min(halfYaw, y));
+  const ay = q.has('ay') ? parseFloat(q.get('ay')) : null;
+  if (ay != null) {
+    startYaw = clampY(ay); arrival = `set by the hotspot: yaw ${ay.toFixed(0)}°`;
+  } else if (q.get('mode') === 'stairs') {
+    // A stair turns you, so carrying the compass bearing is wrong. Face away from the way back instead.
+    const back = (scene.objects || []).find(o2 => (o2.actions || []).some(a => a.type === 'goto' && a.scene === q.get('from')));
+    if (back) { startYaw = clampY(wrap180(back.location.yaw + 180)); arrival = `stairs: facing away from the way back (yaw ${startYaw.toFixed(0)}°)`; }
+    else arrival = 'stairs: no way back to face away from, default view';
+  } else if (travel != null && bc != null && travelRef && travelRef === o.reference && o.reference !== 'unknown') {
+    const want = wrap180(travel - bc);
+    startYaw = Math.max(-halfYaw, Math.min(halfYaw, want));
+    arrival = `travel ${travel.toFixed(0)}° → yaw ${want.toFixed(0)}°` + (startYaw !== want ? ' (clamped to photo)' : '');
+  } else if (travel != null) {
+    arrival = 'no matching bearing reference: default view';
+  } else if (q.has('from')) {
+    arrival = `hop from ${q.get('from')} carried no bearing (origin had none): default view`;
+  }
+  console.log('ARRIVE', { slug, from: q.get('from'), travel, travelRef, bc, reference: o.reference, arrival });
+
+  const markers = (scene.objects || []).map(ob => ({
+    id: ob.id,
+    position: { yaw: `${ob.location.yaw}deg`, pitch: `${ob.location.pitch}deg` },
+    html: markerHTML(ob.variant),
+    size: { width: 36, height: 36 },
+    tooltip: ob.label,
+    data: ob,
+  }));
+
+  const viewer = new Viewer({
+    container: $('viewer'),
+    ...(full ? {} : { adapter: EquirectangularTilesAdapter }),
+    panorama: full ? desc.representations[0].url
+      : { width: t.width, cols: t.cols, rows: t.rows,
+          baseUrl: t.base.url, basePanoData: t.base.panoData, tileUrl },
+    plugins: [[MarkersPlugin, { markers }]],
+    defaultYaw: `${startYaw}deg`,
+    defaultPitch: '0deg',
+    navbar: ['zoom', 'fullscreen'],
+    defaultZoomLvl: 30,
+  });
+
+  // goto: carry the compass bearing you were facing through the hotspot.
+  viewer.getPlugin(MarkersPlugin).addEventListener('select-marker', ({ marker }) => {
+    const ob = marker.data;
+    const act = (ob.actions || []).find(a => a.type === 'goto');
+    if (!act) return;
+    const u = new URLSearchParams({ s: act.scene, from: slug });
+    if (tourId) u.set('t', tourId);
+    if (ob.arrival && ob.arrival.yaw != null) u.set('ay', ob.arrival.yaw);
+    else if (ob.variant === 'stairs') u.set('mode', 'stairs');
+    if (bc != null) { u.set('travel', norm(bc + ob.location.yaw).toFixed(1)); u.set('ref', o.reference); }
+    console.log('HOP', { from: slug, to: act.scene, fromBearing: bc, fromRef: o.reference, hotspotYaw: ob.location.yaw,
+                         travel: bc != null ? norm(bc + ob.location.yaw) : 'SKIPPED: origin has no bearingOfCenter' });
+    location.href = 'scene-viewer.html?' + u;
+  });
+
+  // Keep the visible edge inside the photo.
+  let clamping = false;
+  function clampView() {
+    if (full || clamping) return;
+    const st = viewer.state || {};
+    const maxY = Math.max(0, halfYaw - (st.hFov || 0) / 2);
+    const maxP = Math.max(0, halfPitch - (st.vFov || 0) / 2);
+    const p = viewer.getPosition();
+    const y = wrap180(toDeg(p.yaw)), pt = toDeg(p.pitch);
+    const cy = Math.max(-maxY, Math.min(maxY, y)), cp = Math.max(-maxP, Math.min(maxP, pt));
+    if (Math.abs(cy - y) > 0.01 || Math.abs(cp - pt) > 0.01) {
+      clamping = true; viewer.rotate({ yaw: `${cy}deg`, pitch: `${cp}deg` }); clamping = false;
+    }
+  }
+
+  // Shift-click copies "yaw, pitch" so you can paste it into a scene's objects.
+  let shiftDown = false, picked = '';
+  document.addEventListener('pointerdown', e => { shiftDown = e.shiftKey; }, true);
+  viewer.addEventListener('click', e => {
+    if (!shiftDown) return;
+    picked = `"yaw": ${wrap180(toDeg(e.data.yaw)).toFixed(1)}, "pitch": ${toDeg(e.data.pitch).toFixed(1)}`;
+    navigator.clipboard.writeText(picked);
+    show();
+  });
+
+  function show() {
+    const p = viewer.getPosition();
+    const yaw = wrap180(toDeg(p.yaw));
+    $('hud').innerHTML =
+      `${scene.title} — center ${bc == null ? '?' : bc.toFixed(1)}° (${o.reference || '?'}, ${o.source || '?'})<br>` +
+      `facing ${bc == null ? '?' : norm(bc + yaw).toFixed(0)}° · arrival: ${arrival}<br>` +
+      `shift-click to copy a hotspot position` + (picked ? `<br>copied: ${picked}` : '');
+  }
+  viewer.addEventListener('position-updated', () => { show(); clampView(); });
+  viewer.addEventListener('zoom-updated', clampView);
+  viewer.addEventListener('ready', () => { show(); clampView(); });
+
+  // Optional tour menu.
+  if (tourId) {
+    try {
+      const tour = await getJSON(`tours/${tourId}.json`);
+      const m = $('menu');
+      m.hidden = false;
+      m.innerHTML = `<b>${tour.title}</b>` + tour.scenes.map(s =>
+        `<a href="scene-viewer.html?s=${s}&t=${tourId}">${s}</a>`).join('');
+    } catch (e) { /* menu is optional */ }
+  }
+</script>
+</body>
+</html>
